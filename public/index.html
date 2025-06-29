@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuckSeeker - กรอกข้อมูลเกิด</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2.1/sdk.js"></script>
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #7B68EE;
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .header p {
+            color: #666;
+            margin: 10px 0 0 0;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #7B68EE;
+        }
+        
+        .gender-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 8px;
+        }
+        
+        .gender-option {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+        }
+        
+        .gender-option.selected {
+            border-color: #7B68EE;
+            background: #f8f7ff;
+            color: #7B68EE;
+        }
+        
+        .location-group {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        
+        .location-input {
+            flex: 1;
+        }
+        
+        .get-location-btn {
+            padding: 12px 15px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #7B68EE, #9370DB);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .error {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap');
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌟 LuckSeeker</h1>
+            <p>กรอกข้อมูลเกิดเพื่อดูดวงชะตา</p>
+        </div>
+        
+        <form id="birthForm">
+            <div class="form-group">
+                <label>เพศ *</label>
+                <div class="gender-group">
+                    <div class="gender-option" data-gender="male">👨 ชาย</div>
+                    <div class="gender-option" data-gender="female">👩 หญิง</div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="birthdate">วันเกิด *</label>
+                <input type="date" id="birthdate" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="birthtime">เวลาเกิด *</label>
+                <input type="time" id="birthtime" required>
+            </div>
+            
+            <div class="form-group">
+                <label>สถานที่เกิด *</label>
+                <div class="location-group">
+                    <div class="location-input">
+                        <input type="text" id="latitude" placeholder="ละติจูด" readonly required>
+                    </div>
+                    <div class="location-input">
+                        <input type="text" id="longitude" placeholder="ลองติจูด" readonly required>
+                    </div>
+                    <button type="button" class="get-location-btn" onclick="getLocation()">📍</button>
+                </div>
+                <div class="error" id="locationError"></div>
+            </div>
+            
+            <button type="submit" class="submit-btn" id="submitBtn">เริ่มดูดวง ✨</button>
+        </form>
+    </div>
+
+    <script>
+        let selectedGender = null;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof liff !== 'undefined') {
+                liff.init({
+                    liffId: window.location.search.includes('liffId=') 
+                        ? new URLSearchParams(window.location.search).get('liffId')
+                        : '2006395088-xxxxxxxx' // Replace with actual LIFF ID
+                }).then(() => {
+                    console.log('LIFF initialized');
+                }).catch((err) => {
+                    console.error('LIFF initialization failed', err);
+                });
+            }
+            
+            // Gender selection
+            document.querySelectorAll('.gender-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.gender-option').forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedGender = this.dataset.gender;
+                });
+            });
+            
+            // Form submission
+            document.getElementById('birthForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                submitForm();
+            });
+            
+            // Auto-get location on load
+            getLocation();
+        });
+        
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        document.getElementById('latitude').value = position.coords.latitude.toFixed(6);
+                        document.getElementById('longitude').value = position.coords.longitude.toFixed(6);
+                        document.getElementById('locationError').textContent = '';
+                    },
+                    function(error) {
+                        let errorMsg = '';
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMsg = 'กรุณาอนุญาตให้เข้าถึงตำแหน่ง';
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMsg = 'ไม่สามารถหาตำแหน่งได้';
+                                break;
+                            case error.TIMEOUT:
+                                errorMsg = 'หมดเวลาในการหาตำแหน่ง';
+                                break;
+                        }
+                        document.getElementById('locationError').textContent = errorMsg;
+                        
+                        // Set default to Bangkok coordinates
+                        document.getElementById('latitude').value = '13.7563';
+                        document.getElementById('longitude').value = '100.5018';
+                    }
+                );
+            } else {
+                document.getElementById('locationError').textContent = 'เบราว์เซอร์ไม่รองรับการหาตำแหน่ง';
+                // Set default to Bangkok coordinates
+                document.getElementById('latitude').value = '13.7563';
+                document.getElementById('longitude').value = '100.5018';
+            }
+        }
+        
+        function submitForm() {
+            if (!selectedGender) {
+                alert('กรุณาเลือกเพศ');
+                return;
+            }
+            
+            const formData = {
+                gender: selectedGender,
+                birthdate: document.getElementById('birthdate').value,
+                birthtime: document.getElementById('birthtime').value,
+                latitude: document.getElementById('latitude').value,
+                longitude: document.getElementById('longitude').value
+            };
+            
+            // Validate required fields
+            if (!formData.birthdate || !formData.birthtime || !formData.latitude || !formData.longitude) {
+                alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+                return;
+            }
+            
+            // Send data to LINE
+            const message = 'birth:' + JSON.stringify(formData);
+            
+            if (typeof liff !== 'undefined' && liff.isLoggedIn()) {
+                liff.sendMessages([{
+                    type: 'text',
+                    text: message
+                }]).then(() => {
+                    liff.closeWindow();
+                }).catch((err) => {
+                    console.error('Error sending message', err);
+                    alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
+                });
+            } else {
+                // For testing without LINE
+                console.log('Birth data:', formData);
+                alert('ข้อมูลถูกส่งแล้ว (โหมดทดสอบ)');
+            }
+        }
+    </script>
+</body>
+</html>
