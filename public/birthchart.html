@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เครื่องมือสร้างแผนภูมิดวงดาว</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4a90e2, #357abd);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .content {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 0;
+            min-height: 800px;
+        }
+        
+        .controls {
+            background: #f8f9fa;
+            padding: 30px;
+            border-right: 1px solid #e0e0e0;
+        }
+        
+        .chart-area {
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: white;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+        }
+        
+        .datetime-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .location-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .generate-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #4a90e2, #357abd);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-top: 20px;
+        }
+        
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(74, 144, 226, 0.3);
+        }
+        
+        .chart-container {
+            position: relative;
+            width: 600px;
+            height: 600px;
+            margin-bottom: 20px;
+        }
+        
+        .chart-circle {
+            width: 100%;
+            height: 100%;
+            border: 3px solid #333;
+            border-radius: 50%;
+            position: relative;
+            background: white;
+        }
+        
+        .outer-ring {
+            position: absolute;
+            width: calc(100% + 60px);
+            height: calc(100% + 60px);
+            border: 2px solid #333;
+            border-radius: 50%;
+            top: -30px;
+            left: -30px;
+        }
+        
+        .house-line {
+            position: absolute;
+            width: 2px;
+            height: 50%;
+            background: #333;
+            top: 0;
+            left: 50%;
+            transform-origin: bottom center;
+        }
+        
+        .house-number {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            color: #333;
+            background: rgba(255,255,255,0.9);
+            border-radius: 50%;
+            border: 1px solid #ccc;
+        }
+        
+        .zodiac-sign {
+            position: absolute;
+            font-size: 20px;
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .degree-marks {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+        
+        .degree-mark {
+            position: absolute;
+            width: 1px;
+            height: 8px;
+            background: #999;
+            top: 0;
+            left: 50%;
+            transform-origin: bottom center;
+        }
+        
+        .degree-mark.major {
+            height: 15px;
+            width: 2px;
+            background: #333;
+        }
+        
+        .planet {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 10;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.9);
+            border: 2px solid;
+            transition: transform 0.2s ease;
+        }
+        
+        .planet:hover {
+            transform: scale(1.2);
+        }
+        
+        .planet-degree {
+            position: absolute;
+            font-size: 10px;
+            color: #333;
+            font-weight: bold;
+            background: rgba(255,255,255,0.8);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        
+        .aspect-line {
+            position: absolute;
+            height: 2px;
+            transform-origin: left center;
+            z-index: 5;
+            opacity: 0.7;
+        }
+        
+        .conjunction { background: #ff4444; }
+        .opposition { background: #4488ff; }
+        .trine { background: #44aa44; }
+        .square { background: #ff8844; }
+        .sextile { background: #aa44aa; }
+        
+        .chart-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .chart-info h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .url-display {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+            border: 1px solid #ccc;
+        }
+        
+        .copy-btn {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .copy-btn:hover {
+            background: #218838;
+        }
+        
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .preset-btn {
+            padding: 10px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .preset-btn:hover {
+            background: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌟 เครื่องมือสร้างแผนภูมิดวงดาว</h1>
+            <p>กรอกข้อมูลการเกิดเพื่อสร้างแผนภูมิดวงดาวส่วนตัว</p>
+        </div>
+        
+        <div class="content">
+            <div class="controls">
+                <div class="preset-buttons">
+                    <button class="preset-btn" onclick="loadPreset1()">ตัวอย่าง 1</button>
+                    <button class="preset-btn" onclick="loadPreset2()">ตัวอย่าง 2</button>
+                </div>
+                
+                <div class="form-group">
+                    <label>วันเกิด</label>
+                    <input type="date" id="birthDate" value="1993-01-24">
+                </div>
+                
+                <div class="form-group">
+                    <label>เวลาเกิด</label>
+                    <div class="datetime-grid">
+                        <input type="number" id="birthHour" placeholder="ชั่วโมง" min="0" max="23" value="0">
+                        <input type="number" id="birthMinute" placeholder="นาที" min="0" max="59" value="0">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>สถานที่เกิด</label>
+                    <input type="text" id="birthPlace" placeholder="เช่น กรุงเทพฯ, ประเทศไทย" value="กรุงเทพฯ, ประเทศไทย">
+                </div>
+                
+                <div class="form-group">
+                    <label>พิกัด</label>
+                    <div class="location-grid">
+                        <input type="number" id="latitude" placeholder="ละติจูด" step="0.001" value="13.75">
+                        <input type="number" id="longitude" placeholder="ลองจิจูด" step="0.001" value="100.50">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>ระบบบ้าน</label>
+                    <select id="houseSystem">
+                        <option value="placidus">Placidus</option>
+                        <option value="koch">Koch</option>
+                        <option value="equal">Equal House</option>
+                        <option value="whole">Whole Sign</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>ตัวเลือกเพิ่มเติม</label>
+                    <div style="margin-top: 10px;">
+                        <label style="font-weight: normal; display: flex; align-items: center; margin-bottom: 5px;">
+                            <input type="checkbox" id="showFortune" checked style="margin-right: 8px; width: auto;">
+                            แสดง Part of Fortune
+                        </label>
+                        <label style="font-weight: normal; display: flex; align-items: center; margin-bottom: 5px;">
+                            <input type="checkbox" id="showVertex" checked style="margin-right: 8px; width: auto;">
+                            แสดง Vertex
+                        </label>
+                        <label style="font-weight: normal; display: flex; align-items: center; margin-bottom: 5px;">
+                            <input type="checkbox" id="showChiron" checked style="margin-right: 8px; width: auto;">
+                            แสดง Chiron
+                        </label>
+                        <label style="font-weight: normal; display: flex; align-items: center; margin-bottom: 5px;">
+                            <input type="checkbox" id="showLilith" checked style="margin-right: 8px; width: auto;">
+                            แสดง Lilith
+                        </label>
+                        <label style="font-weight: normal; display: flex; align-items: center;">
+                            <input type="checkbox" id="showNodes" checked style="margin-right: 8px; width: auto;">
+                            แสดง Lunar Nodes
+                        </label>
+                    </div>
+                </div>
+                
+                <button class="generate-btn" onclick="generateChart()">
+                    🎨 สร้างแผนภูมิดวงดาว
+                </button>
+                
+                <div class="url-display" id="urlDisplay" style="display: none;">
+                    <strong>URL สำหรับแผนภูมินี้:</strong>
+                    <div id="generatedUrl"></div>
+                    <button class="copy-btn" onclick="copyUrl()">📋 คัดลอก URL</button>
+                </div>
+            </div>
+            
+            <div class="chart-area" >
+                <div class="chart-container">
+                	<img id="birthchart-img" src="#" style="width: 100%;" />
+                    <!-- <div class="outer-ring"></div> -->
+                    <div class="chart-circle" id="chart" style="display: none;">
+                        <div class="degree-marks" id="degree-marks"></div>
+                    </div>
+                    <div>
+                    	
+                    </div>
+                </div>
+                
+                <div class="chart-info" id="chartInfo">
+                    <h3>ข้อมูลแผนภูมิดวงดาว</h3>
+                    <div id="chartDetails"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ข้อมูลพื้นฐาน
+        let currentChart = null;
+        
+        const zodiacSigns = [
+            { name: '♈', thaiName: 'เมษ', degree: 0 },
+            { name: '♉', thaiName: 'พฤษภ', degree: 30 },
+            { name: '♊', thaiName: 'เมถุน', degree: 60 },
+            { name: '♋', thaiName: 'กรกฎ', degree: 90 },
+            { name: '♌', thaiName: 'สิงห์', degree: 120 },
+            { name: '♍', thaiName: 'กันย์', degree: 150 },
+            { name: '♎', thaiName: 'ตุลย์', degree: 180 },
+            { name: '♏', thaiName: 'พิจิก', degree: 210 },
+            { name: '♐', thaiName: 'ธนู', degree: 240 },
+            { name: '♑', thaiName: 'มกร', degree: 270 },
+            { name: '♒', thaiName: 'กุมภ์', degree: 300 },
+            { name: '♓', thaiName: 'มีน', degree: 330 }
+        ];
+
+        const planetSymbols = {
+            sun: { symbol: '☉', name: 'ดวงอาทิตย์', color: '#ff6b35' },
+            moon: { symbol: '☽', name: 'ดวงจันทร์', color: '#333' },
+            mercury: { symbol: '☿', name: 'ดาวพุธ', color: '#ff6b35' },
+            venus: { symbol: '♀', name: 'ดาวศุกร์', color: '#ff1493' },
+            mars: { symbol: '♂', name: 'ดาวอังคาร', color: '#dc143c' },
+            jupiter: { symbol: '♃', name: 'ดาวพฤหัส', color: '#4169e1' },
+            saturn: { symbol: '♄', name: 'ดาวเสาร์', color: '#8b4513' },
+            uranus: { symbol: '♅', name: 'ดาวยูเรนัส', color: '#4169e1' },
+            neptune: { symbol: '♆', name: 'ดาวเนปจูน', color: '#1e90ff' },
+            pluto: { symbol: '♇', name: 'ดาวพลูโต', color: '#8b0000' },
+            north_node: { symbol: '☊', name: 'โหนดเหนือ', color: '#800080' },
+            lilith: { symbol: '⚸', name: 'ลิลิธ', color: '#333' },
+            chiron: { symbol: '⚷', name: 'ไครอน', color: '#a0522d' },
+            fortune: { symbol: '⊕', name: 'Part of Fortune', color: '#ffd700' },
+            vertex: { symbol: 'Vx', name: 'Vertex', color: '#8a2be2' }
+        };
+
+        function degreesToRadians(degrees) {
+            return (degrees * Math.PI) / 180;
+        }
+
+        function getPositionOnCircle(degree, radius) {
+            const radian = degreesToRadians(degree - 90);
+            return {
+                x: Math.cos(radian) * radius,
+                y: Math.sin(radian) * radius
+            };
+        }
+
+        function formatDegree(degree) {
+            const signIndex = Math.floor(degree / 30);
+            const degreeInSign = Math.floor(degree % 30);
+            const minutes = Math.floor((degree % 1) * 60);
+            return `${degreeInSign}°${minutes.toString().padStart(2, '0')}'`;
+        }
+
+        function getSignName(degree) {
+            // const signIndex = Math.floor(degree / 30);
+            // return zodiacSigns[signIndex].thaiName;
+            // mock
+            return `กุมภ์`
+        }
+
+        function getHouseNumber(degree, houses) {
+            for (let i = 0; i < houses.length; i++) {
+                let nextHouse = houses[(i + 1) % houses.length];
+                let currentHouse = houses[i];
+                
+                if (currentHouse.degree <= nextHouse.degree) {
+                    if (degree >= currentHouse.degree && degree < nextHouse.degree) {
+                        return currentHouse.number;
+                    }
+                } else {
+                    if (degree >= currentHouse.degree || degree < nextHouse.degree) {
+                        return currentHouse.number;
+                    }
+                }
+            }
+            return 1;
+        }
+
+        function createDegreeMarks() {
+            const marksContainer = document.getElementById('degree-marks');
+            marksContainer.innerHTML = '';
+            
+            for (let i = 0; i < 360; i += 5) {
+                const mark = document.createElement('div');
+                mark.className = i % 30 === 0 ? 'degree-mark major' : 'degree-mark';
+                mark.style.transform = `rotate(${i}deg)`;
+                marksContainer.appendChild(mark);
+            }
+        }
+
+        function generateChart() {
+            const birthDate = document.getElementById('birthDate').value;
+            const birthHour = parseInt(document.getElementById('birthHour').value) || 0;
+            const birthMinute = parseInt(document.getElementById('birthMinute').value) || 0;
+            const birthPlace = document.getElementById('birthPlace').value;
+            const latitude = parseFloat(document.getElementById('latitude').value) || 13.75;
+            const longitude = parseFloat(document.getElementById('longitude').value) || 100.50;
+            const houseSystem = document.getElementById('houseSystem').value;
+            
+            // สร้างข้อมูลแผนภูมิจำลอง (ในระบบจริงจะคำนวณจากดาราศาสตร์)
+            const chart = generateChartData(birthDate, birthHour, birthMinute, latitude, longitude);
+            currentChart = chart;
+            
+            // แสดงแผนภูมิ
+            displayChart(chart);
+            
+            // สร้าง URL
+            const url = generateChartUrl(chart, birthDate, birthHour, birthMinute, latitude, longitude, houseSystem);
+            document.getElementById('generatedUrl').textContent = url;
+            document.getElementById('urlDisplay').style.display = 'block';
+            
+            // แสดงข้อมูลแผนภูมิ
+            displayChartInfo(chart, birthDate, birthHour, birthMinute, birthPlace, latitude, longitude);
+        }
+
+        function generateChartData(birthDate, birthHour, birthMinute, latitude, longitude) {
+            // สร้างข้อมูลจำลอง (ในระบบจริงจะใช้ Swiss Ephemeris หรือ API อื่น)
+            const date = new Date(birthDate + 'T' + birthHour.toString().padStart(2, '0') + ':' + birthMinute.toString().padStart(2, '0'));
+            const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+            
+            // จำลองตำแหน่งดาวเคราะห์ (ไม่ใช่ตำแหน่งจริง)
+            let planets = {
+                sun: (dayOfYear * 0.986 + Math.random() * 30) % 360,
+                moon: (dayOfYear * 13.18 + Math.random() * 30) % 360,
+                mercury: (dayOfYear * 4.09 + Math.random() * 30) % 360,
+                venus: (dayOfYear * 1.6 + Math.random() * 30) % 360,
+                mars: (dayOfYear * 0.524 + Math.random() * 30) % 360,
+                jupiter: (dayOfYear * 0.083 + Math.random() * 30) % 360,
+                saturn: (dayOfYear * 0.034 + Math.random() * 30) % 360,
+                uranus: (dayOfYear * 0.012 + Math.random() * 30) % 360,
+                neptune: (dayOfYear * 0.006 + Math.random() * 30) % 360,
+                pluto: (dayOfYear * 0.004 + Math.random() * 30) % 360,
+                north_node: (360 - dayOfYear * 0.053 + Math.random() * 30) % 360,
+                lilith: (dayOfYear * 0.111 + Math.random() * 30) % 360,
+                chiron: (dayOfYear * 0.02 + Math.random() * 30) % 360,
+                // fortune: (planets.sun + planets.moon - planets.ascendant + 360) % 360,
+                vertex: (longitude * 2 + latitude + Math.random() * 30) % 360
+            };
+
+            planets.fortune = (planets.sun + planets.moon - planets.ascendant + 360) % 360;
+            
+            // จำลองตำแหน่งบ้าน
+            const ascendant = (birthHour * 15 + birthMinute * 0.25 + longitude * 0.5 + Math.random() * 30) % 360;
+            const houses = [];
+            for (let i = 0; i < 12; i++) {
+                houses.push({
+                    number: i + 1,
+                    degree: (ascendant + i * 30 + Math.random() * 10 - 5) % 360
+                });
+            }
+            
+            return { planets, houses, ascendant };
+        }
+
+        function displayChart(chart) {
+            const chartElement = document.getElementById('chart');
+            const centerX = 300;
+            const centerY = 300;
+            const outerRadius = 280;
+            const planetRadius = 220;
+            
+            // ล้างแผนภูมิเก่า
+            chartElement.innerHTML = '<div class="degree-marks" id="degree-marks"></div>';
+            createDegreeMarks();
+            
+            // สร้างเส้นแบ่งบ้าน
+            chart.houses.forEach(house => {
+                const line = document.createElement('div');
+                line.className = 'house-line';
+                line.style.transform = `rotate(${house.degree}deg)`;
+                chartElement.appendChild(line);
+                
+                // หมายเลขบ้าน
+                const pos = getPositionOnCircle(house.degree, 200);
+                const houseNumber = document.createElement('div');
+                houseNumber.className = 'house-number';
+                houseNumber.textContent = house.number;
+                houseNumber.style.left = `${centerX + pos.x - 12}px`;
+                houseNumber.style.top = `${centerY + pos.y - 12}px`;
+                chartElement.appendChild(houseNumber);
+            });
+            
+            // สร้างสัญลักษณ์ราศี
+            zodiacSigns.forEach(sign => {
+                const pos = getPositionOnCircle(sign.degree + 15, outerRadius + 20);
+                const signElement = document.createElement('div');
+                signElement.className = 'zodiac-sign';
+                signElement.textContent = sign.name;
+                signElement.style.left = `${centerX + pos.x - 10}px`;
+                signElement.style.top = `${centerY + pos.y - 10}px`;
+                chartElement.appendChild(signElement);
+            });
+            
+            // สร้างดาวเคราะห์
+            Object.entries(chart.planets).forEach(([planetKey, degree]) => {
+                if (!shouldShowPlanet(planetKey)) return;
+                
+                const planetInfo = planetSymbols[planetKey];
+                if (!planetInfo) return;
+                
+                const pos = getPositionOnCircle(degree, planetRadius);
+                const planet = document.createElement('div');
+                planet.className = 'planet';
+                planet.textContent = planetInfo.symbol;
+                planet.style.color = planetInfo.color;
+                planet.style.borderColor = planetInfo.color;
+                planet.title = `${planetInfo.name} ใน ${getSignName(degree)} ${formatDegree(degree)}`;
+                planet.style.left = `${centerX + pos.x - 14}px`;
+                planet.style.top = `${centerY + pos.y - 14}px`;
+                chartElement.appendChild(planet);
+                
+                // แสดงองศา
+                const degreePos = getPositionOnCircle(degree, planetRadius - 35);
+                const degreeLabel = document.createElement('div');
+                degreeLabel.className = 'planet-degree';
+                degreeLabel.textContent = formatDegree(degree);
+                degreeLabel.style.left = `${centerX + degreePos.x - 15}px`;
+                degreeLabel.style.top = `${centerY + degreePos.y - 8}px`;
+                chartElement.appendChild(degreeLabel);
+            });
+        }
+
+        function shouldShowPlanet(planetKey) {
+            switch(planetKey) {
+                case 'fortune': return document.getElementById('showFortune').checked;
+                case 'vertex': return document.getElementById('showVertex').checked;
+                case 'chiron': return document.getElementById('showChiron').checked;
+                case 'lilith': return document.getElementById('showLilith').checked;
+                case 'north_node': return document.getElementById('showNodes').checked;
+                default: return true;
+            }
+        }
+
+        function generateChartUrl(chart, birthDate, birthHour, birthMinute, latitude, longitude, houseSystem) {
+            const baseUrl = window.location.origin + window.location.pathname;
+            const params = new URLSearchParams();
+            
+            // เพิ่ม parameters
+            params.append('date', birthDate);
+            params.append('time', `${birthHour.toString().padStart(2, '0')}:${birthMinute.toString().padStart(2, '0')}`);
+            params.append('lat', latitude.toString());
+            params.append('lon', longitude.toString());
+            params.append('house_system', houseSystem);
+            
+            // เพิ่มตำแหน่งดาวเคราะห์
+            Object.entries(chart.planets).forEach(([planet, degree]) => {
+                params.append(`p_${planet}`, degree.toFixed(2));
+            });
+            
+            // เพิ่มตำแหน่งบ้าน
+            chart.houses.forEach((house, index) => {
+                params.append(`house_${index + 1}`, house.degree.toFixed(2));
+            });
+            
+            return `${baseUrl}?${params.toString()}`;
+        }
+
+        function displayChartInfo(chart, birthDate, birthHour, birthMinute, birthPlace, latitude, longitude) {
+            const details = document.getElementById('chartDetails');
+            const date = new Date(birthDate);
+            const formattedDate = date.toLocaleDateString('th-TH', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            
+            details.innerHTML = `
+                <p><strong>วันเกิด:</strong> ${formattedDate}</p>
+                <p><strong>เวลา:</strong> ${birthHour.toString().padStart(2, '0')}:${birthMinute.toString().padStart(2, '0')} น.</p>
+                <p><strong>สถานที่:</strong> ${birthPlace}</p>
+                <p><strong>พิกัด:</strong> ${latitude.toFixed(2)}°N, ${longitude.toFixed(2)}°E</p>
+                <p><strong>Ascendant:</strong> ${getSignName(chart.ascendant)} ${formatDegree(chart.ascendant)}</p>
+            `;
+        }
+
+        function copyUrl() {
+            const urlText = document.getElementById('generatedUrl').textContent;
+            navigator.clipboard.writeText(urlText).then(() => {
+                const copyBtn = document.querySelector('.copy-btn');
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '✅ คัดลอกแล้ว!';
+                copyBtn.style.background = '#28a745';
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.style.background = '#28a745';
+                }, 2000);
+            });
+        }
+
+        function loadPreset1() {
+            // ตัวอย่างที่ 1 - ข้อมูลจากเดิม
+            document.getElementById('birthDate').value = '1993-01-24';
+            document.getElementById('birthHour').value = '0';
+            document.getElementById('birthMinute').value = '0';
+            document.getElementById('birthPlace').value = 'กรุงเทพฯ, ประเทศไทย';
+            document.getElementById('latitude').value = '13.75';
+            document.getElementById('longitude').value = '100.50';
+            document.getElementById('houseSystem').value = 'placidus';
+        }
+
+        function loadPreset2() {
+            // ตัวอย่างที่ 2 - ข้อมูลจาก URL ที่ให้มา
+            document.getElementById('birthDate').value = '1989-01-24';
+            document.getElementById('birthHour').value = '13';
+            document.getElementById('birthMinute').value = '0';
+            document.getElementById('birthPlace').value = 'กรุงเทพฯ, ประเทศไทย';
+            document.getElementById('latitude').value = '13.75';
+            document.getElementById('longitude').value = '100.50';
+            document.getElementById('houseSystem').value = 'placidus';
+        }
+
+        function parseUrlParameters() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            if (urlParams.has('date')) {
+                document.getElementById('birthDate').value = urlParams.get('date');
+            }
+            
+            if (urlParams.has('time')) {
+                const time = urlParams.get('time').split(':');
+                document.getElementById('birthHour').value = time[0] || '0';
+                document.getElementById('birthMinute').value = time[1] || '0';
+            }
+            
+            if (urlParams.has('lat')) {
+                document.getElementById('latitude').value = urlParams.get('lat');
+            }
+            
+            if (urlParams.has('lon')) {
+                document.getElementById('longitude').value = urlParams.get('lon');
+            }
+            
+            if (urlParams.has('house_system')) {
+                document.getElementById('houseSystem').value = urlParams.get('house_system');
+            }
+            
+            // ถ้ามี parameter แสดงว่าต้องการแสดงแผนภูมิทันที
+            if (urlParams.has('date') || urlParams.has('p_sun')) {
+                setTimeout(() => {
+                    generateChart();
+                }, 100);
+            }
+        }
+
+        function generateAstroSeekUrl(chart, birthDate, birthHour, birthMinute, latitude, longitude) {
+            // สร้าง URL แบบ Astro-Seek
+            const date = new Date(birthDate);
+            const day = date.getDate();
+            const month = date.getMonth() + 1;
+            const year = date.getFullYear();
+            
+            const baseUrl = 'https://horoscopes.astro-seek.com/horoscope-chart4def-700__radix_';
+            let url = `${baseUrl}${day}-${month}-${year}_${birthHour}-${birthMinute.toString().padStart(2, '0')}.png?`;
+            
+            const params = new URLSearchParams();
+            
+            // Add basic parameters
+            params.append('fortune_asp', document.getElementById('showFortune').checked ? '1' : '0');
+            params.append('vertex_asp', document.getElementById('showVertex').checked ? '1' : '0');
+            params.append('chiron_asp', document.getElementById('showChiron').checked ? '1' : '0');
+            params.append('lilith_asp', document.getElementById('showLilith').checked ? '1' : '0');
+            params.append('uzel_asp', document.getElementById('showNodes').checked ? '1' : '0');
+            
+            // Add house positions
+            chart.houses.forEach((house, index) => {
+                params.append(`dum_${index + 1}`, house.degree.toFixed(3));
+            });
+            
+            // Add planet positions
+            const planetMapping = {
+                'sun': 'slunce',
+                'moon': 'luna',
+                'mercury': 'merkur',
+                'venus': 'venuse',
+                'mars': 'mars',
+                'jupiter': 'jupiter',
+                'saturn': 'saturn',
+                'uranus': 'uran',
+                'neptune': 'neptun',
+                'pluto': 'pluto',
+                'north_node': 'uzel',
+                'lilith': 'lilith',
+                'chiron': 'chiron',
+                'fortune': 'fortune',
+                'vertex': 'vertex'
+            };
+            
+            Object.entries(chart.planets).forEach(([planetKey, degree]) => {
+                if (planetMapping[planetKey]) {
+                    params.append(`p_${planetMapping[planetKey]}`, degree.toFixed(2));
+                }
+            });
+            
+            // Add additional parameters
+            params.append('tolerance', '1');
+            params.append('tolerance_paral', '1.2');
+            params.append('nocache', Math.floor(Math.random() * 100).toString());
+            params.append('domy_cisla', '0');
+            params.append('barva_planet', '0');
+            params.append('barva_stupne', '0');
+            params.append('barva_pozadi', '0');
+            params.append('barva_domy', '1');
+            params.append('barva_vzduch', '1');
+            params.append('gif', '1');
+            
+            return url + params.toString();
+        }
+
+        function addAstroSeekUrl() {
+            if (currentChart) {
+                const birthDate = document.getElementById('birthDate').value;
+                const birthHour = parseInt(document.getElementById('birthHour').value) || 0;
+                const birthMinute = parseInt(document.getElementById('birthMinute').value) || 0;
+                const latitude = parseFloat(document.getElementById('latitude').value) || 13.75;
+                const longitude = parseFloat(document.getElementById('longitude').value) || 100.50;
+                
+                const astroSeekUrl = generateAstroSeekUrl(currentChart, birthDate, birthHour, birthMinute, latitude, longitude);
+                
+                document.getElementById('birthchart-img').src = astroSeekUrl; 
+                
+                const urlDisplay = document.getElementById('urlDisplay');
+                urlDisplay.innerHTML += `
+                    <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #ccc;">
+                        <strong>Astro-Seek Compatible URL:</strong>
+                        <div style="margin-top: 10px; font-size: 11px; word-break: break-all;">${astroSeekUrl}</div>
+                        <button class="copy-btn" onclick="copyAstroSeekUrl('${astroSeekUrl}')" style="margin-top: 10px;">
+                            📋 คัดลอก Astro-Seek URL
+                        </button>
+                        <a href="${astroSeekUrl}" target="_blank" class="copy-btn" style="background: #007bff; text-decoration: none; display: inline-block; margin-left: 10px;">
+                            🔗 เปิดใน Astro-Seek
+                        </a>
+                    </div>
+                `;
+            }
+        }
+
+        function copyAstroSeekUrl(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = '✅ คัดลอกแล้ว!';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
+            });
+        }
+
+        // Enhanced generateChart function
+        function generateChart() {
+            const birthDate = document.getElementById('birthDate').value;
+            const birthHour = parseInt(document.getElementById('birthHour').value) || 0;
+            const birthMinute = parseInt(document.getElementById('birthMinute').value) || 0;
+            const birthPlace = document.getElementById('birthPlace').value;
+            const latitude = parseFloat(document.getElementById('latitude').value) || 13.75;
+            const longitude = parseFloat(document.getElementById('longitude').value) || 100.50;
+            const houseSystem = document.getElementById('houseSystem').value;
+            
+            // สร้างข้อมูลแผนภูมิจำลอง
+            const chart = generateChartData(birthDate, birthHour, birthMinute, latitude, longitude);
+            currentChart = chart;
+            
+            // แสดงแผนภูมิ
+            displayChart(chart);
+            
+            // สร้าง URL
+            const url = generateChartUrl(chart, birthDate, birthHour, birthMinute, latitude, longitude, houseSystem);
+            document.getElementById('generatedUrl').textContent = url;
+            document.getElementById('urlDisplay').style.display = 'block';
+            
+            // เพิ่ม Astro-Seek URL
+            setTimeout(() => {
+                addAstroSeekUrl();
+            }, 100);
+            
+            // แสดงข้อมูลแผนภูมิ
+            displayChartInfo(chart, birthDate, birthHour, birthMinute, birthPlace, latitude, longitude);
+        }
+
+        // เริ่มต้นแอปพลิเคชัน
+        document.addEventListener('DOMContentLoaded', function() {
+            parseUrlParameters();
+            loadPreset1();
+            generateChart();
+        });
+
+    </script>
+</body>

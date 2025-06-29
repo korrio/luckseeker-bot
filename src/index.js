@@ -26,6 +26,9 @@ app.get('/', (req, res) => {
 app.get('/liff', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
+app.get('/birthchart', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/birthchart.html'));
+});
 
 // Test endpoint to debug webhook
 app.post('/test', (req, res) => {
