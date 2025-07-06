@@ -404,6 +404,15 @@ async function handleGreeting(event) {
                 text: 'ย้ายงาน'
               },
               style: 'primary'
+            },
+            {
+              type: 'button',
+              action: {
+                type: 'uri',
+                label: 'กรอกข้อมูลเพิ่มเติม',
+                uri: `https://miniapp.line.me/${config.line.liffId}/input.html`
+              },
+              style: 'secondary'
             }
           ]
         }
@@ -752,6 +761,15 @@ async function handlePostback(event) {
                 text: 'ย้ายงาน'
               },
               style: 'primary'
+            },
+            {
+              type: 'button',
+              action: {
+                type: 'uri',
+                label: 'กรอกข้อมูลเพิ่มเติม',
+                uri: `https://miniapp.line.me/${config.line.liffId}/input.html`
+              },
+              style: 'secondary'
             }
           ]
         }
@@ -864,7 +882,16 @@ async function requestBusinessData(event) {
             size: 'sm',
             margin: 'sm',
             color: '#999999'
-          }
+          },
+          {
+              type: 'button',
+              action: {
+                type: 'uri',
+                label: 'กรอกข้อมูลเพิ่มเติม',
+                uri: `https://miniapp.line.me/${config.line.liffId}/input.html`
+              },
+              style: 'secondary'
+            }
         ]
       }
     }
@@ -909,7 +936,16 @@ async function requestPartnerData(event) {
             size: 'sm',
             margin: 'sm',
             color: '#999999'
-          }
+          },
+          {
+              type: 'button',
+              action: {
+                type: 'uri',
+                label: 'กรอกข้อมูลเพิ่มเติม',
+                uri: `https://miniapp.line.me/${config.line.liffId}/input.html`
+              },
+              style: 'secondary'
+            }
         ]
       }
     }

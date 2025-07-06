@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuckSeeker - กรอกข้อมูลเพิ่มเติม</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/versions/2.21.4/sdk.js"></script>
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #7B68EE;
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .header p {
+            color: #666;
+            margin: 10px 0 0 0;
+        }
+        
+        .category-selector {
+            margin-bottom: 30px;
+        }
+        
+        .category-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .category-btn {
+            flex: 1;
+            min-width: 150px;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .category-btn.active {
+            border-color: #7B68EE;
+            background: #f8f7ff;
+            color: #7B68EE;
+        }
+        
+        .input-section {
+            display: none;
+        }
+        
+        .input-section.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #7B68EE;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .date-time-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .date-time-group .form-group {
+            flex: 1;
+        }
+        
+        .location-group {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        
+        .location-input {
+            flex: 1;
+        }
+        
+        .get-location-btn {
+            padding: 12px 15px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #7B68EE, #9370DB);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .error {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        
+        .instruction {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap');
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌟 TUNEHORA</h1>
+            <p>กรอกข้อมูลเพิ่มเติมสำหรับการดูดวง</p>
+        </div>
+        
+        <div class="category-selector">
+            <label>เลือกหมวดการดูดวง:</label>
+            <div class="category-buttons">
+                <div class="category-btn" data-category="lottery">🎰 ซื้อหวย</div>
+                <div class="category-btn" data-category="love">💕 พบรัก</div>
+                <div class="category-btn" data-category="business">💼 ดวงธุรกิจ</div>
+                <div class="category-btn" data-category="relocation">🔄 ย้ายงาน</div>
+            </div>
+        </div>
+        
+        <!-- Lottery Section -->
+        <div class="input-section" id="lottery-section">
+            <div class="instruction">
+                <strong>🎰 ซื้อหวย:</strong> ข้อมูลการซื้อหวย เลขเด็ด และวันที่ต้องการซื้อ
+            </div>
+            <form id="lotteryForm">
+                <div class="form-group">
+                    <label for="lotteryDate">วันที่ต้องการซื้อหวย *</label>
+                    <input type="date" id="lotteryDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="lotteryNumbers">เลขที่สนใจ (ถ้ามี)</label>
+                    <input type="text" id="lotteryNumbers" placeholder="เช่น 123, 456, 789">
+                </div>
+                <div class="form-group">
+                    <label for="lotteryType">ประเภทหวย *</label>
+                    <select id="lotteryType" required>
+                        <option value="">เลือกประเภทหวย</option>
+                        <option value="government">หวยรัฐบาล</option>
+                        <option value="underground">หวยใต้ดิน</option>
+                        <option value="stock">หวยหุ้น</option>
+                        <option value="other">อื่นๆ</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="lotteryAmount">จำนวนเงินที่ต้องการลงทุน</label>
+                    <input type="number" id="lotteryAmount" placeholder="บาท">
+                </div>
+                <button type="submit" class="submit-btn">ส่งข้อมูลซื้อหวย</button>
+            </form>
+        </div>
+        
+        <!-- Love Section -->
+        <div class="input-section" id="love-section">
+            <div class="instruction">
+                <strong>💕 พบรัก:</strong> ข้อมูลของคู่ที่สนใจ หรือข้อมูลสำหรับการหาคู่
+            </div>
+            <form id="loveForm">
+                <div class="form-group">
+                    <label for="partnerName">ชื่อคู่ (ถ้ามี)</label>
+                    <input type="text" id="partnerName" placeholder="ชื่อคู่ที่สนใจ">
+                </div>
+                <div class="form-group">
+                    <label for="partnerBirthdate">วันเกิดคู่ (ถ้าทราบ)</label>
+                    <input type="date" id="partnerBirthdate">
+                </div>
+                <div class="form-group">
+                    <label for="partnerBirthtime">เวลาเกิดคู่ (ถ้าทราบ)</label>
+                    <input type="time" id="partnerBirthtime">
+                </div>
+                <div class="form-group">
+                    <label for="relationshipGoal">เป้าหมายความสัมพันธ์ *</label>
+                    <select id="relationshipGoal" required>
+                        <option value="">เลือกเป้าหมาย</option>
+                        <option value="dating">คบหา</option>
+                        <option value="marriage">แต่งงาน</option>
+                        <option value="reconciliation">คืนดี</option>
+                        <option value="finding">หาคู่ใหม่</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="meetingDate">วันที่ต้องการพบ/คบ</label>
+                    <input type="date" id="meetingDate">
+                </div>
+                <div class="form-group">
+                    <label for="loveNotes">รายละเอียดเพิ่มเติม</label>
+                    <textarea id="loveNotes" placeholder="บอกเล่าสถานการณ์หรือคำถามที่ต้องการทราบ"></textarea>
+                </div>
+                <button type="submit" class="submit-btn">ส่งข้อมูลพบรัก</button>
+            </form>
+        </div>
+        
+        <!-- Business Section -->
+        <div class="input-section" id="business-section">
+            <div class="instruction">
+                <strong>💼 ดวงธุรกิจ:</strong> ข้อมูลการประชุม การนัดหมาย หรือการเริ่มธุรกิจ
+            </div>
+            <form id="businessForm">
+                <div class="form-group">
+                    <label for="businessType">ประเภทธุรกิจ *</label>
+                    <select id="businessType" required>
+                        <option value="">เลือกประเภทธุรกิจ</option>
+                        <option value="meeting">การประชุม/นัดหมาย</option>
+                        <option value="startup">เริ่มธุรกิจใหม่</option>
+                        <option value="investment">การลงทุน</option>
+                        <option value="partnership">หาพันธมิตร</option>
+                        <option value="contract">การทำสัญญา</option>
+                        <option value="other">อื่นๆ</option>
+                    </select>
+                </div>
+                <div class="date-time-group">
+                    <div class="form-group">
+                        <label for="businessDate">วันที่ *</label>
+                        <input type="date" id="businessDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="businessTime">เวลา *</label>
+                        <input type="time" id="businessTime" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>สถานที่ *</label>
+                    <div class="location-group">
+                        <div class="location-input">
+                            <input type="text" id="businessLatitude" placeholder="ละติจูด" readonly required>
+                        </div>
+                        <div class="location-input">
+                            <input type="text" id="businessLongitude" placeholder="ลองติจูด" readonly required>
+                        </div>
+                        <button type="button" class="get-location-btn" onclick="getBusinessLocation()">📍</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="businessLocation">ชื่อสถานที่</label>
+                    <input type="text" id="businessLocation" placeholder="ชื่อสถานที่ประชุม/ทำธุรกิจ">
+                </div>
+                <div class="form-group">
+                    <label for="businessAmount">จำนวนเงินที่เกี่ยวข้อง</label>
+                    <input type="number" id="businessAmount" placeholder="บาท">
+                </div>
+                <div class="form-group">
+                    <label for="businessNotes">รายละเอียดเพิ่มเติม</label>
+                    <textarea id="businessNotes" placeholder="รายละเอียดเกี่ยวกับการประชุม/ธุรกิจ"></textarea>
+                </div>
+                <button type="submit" class="submit-btn">ส่งข้อมูลธุรกิจ</button>
+            </form>
+        </div>
+        
+        <!-- Relocation Section -->
+        <div class="input-section" id="relocation-section">
+            <div class="instruction">
+                <strong>🔄 ย้ายงาน:</strong> ข้อมูลการย้ายงาน ย้ายที่อยู่ หรือเปลี่ยนแปลงสถานที่
+            </div>
+            <form id="relocationForm">
+                <div class="form-group">
+                    <label for="relocationType">ประเภทการย้าย *</label>
+                    <select id="relocationType" required>
+                        <option value="">เลือกประเภทการย้าย</option>
+                        <option value="job">ย้ายงาน</option>
+                        <option value="residence">ย้ายที่อยู่</option>
+                        <option value="business">ย้ายธุรกิจ</option>
+                        <option value="study">ย้ายเพื่อการศึกษา</option>
+                        <option value="other">อื่นๆ</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="relocationDate">วันที่ต้องการย้าย *</label>
+                    <input type="date" id="relocationDate" required>
+                </div>
+                <div class="form-group">
+                    <label>สถานที่ปลายทาง *</label>
+                    <div class="location-group">
+                        <div class="location-input">
+                            <input type="text" id="relocationLatitude" placeholder="ละติจูด" readonly required>
+                        </div>
+                        <div class="location-input">
+                            <input type="text" id="relocationLongitude" placeholder="ลองติจูด" readonly required>
+                        </div>
+                        <button type="button" class="get-location-btn" onclick="getRelocationLocation()">📍</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="relocationDestination">ชื่อสถานที่ปลายทาง</label>
+                    <input type="text" id="relocationDestination" placeholder="ชื่อเมือง/จังหวัด/ประเทศ">
+                </div>
+                <div class="form-group">
+                    <label for="relocationReason">เหตุผลการย้าย</label>
+                    <textarea id="relocationReason" placeholder="เหตุผลหรือจุดประสงค์ในการย้าย"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="relocationConcerns">ข้อกังวล/คำถาม</label>
+                    <textarea id="relocationConcerns" placeholder="สิ่งที่ต้องการทราบเกี่ยวกับการย้าย"></textarea>
+                </div>
+                <button type="submit" class="submit-btn">ส่งข้อมูลย้ายงาน</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let selectedCategory = null;
+        let liffInitialized = false;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize LIFF
+            if (typeof liff !== 'undefined') {
+                liff.init({
+                    liffId: window.location.search.includes('liffId=') 
+                        ? new URLSearchParams(window.location.search).get('liffId')
+                        : '2007661445-rYZJ9qvv'
+                }).then(() => {
+                    console.log('LIFF initialized');
+                    liffInitialized = true;
+                }).catch((err) => {
+                    console.error('LIFF initialization failed', err);
+                    liffInitialized = false;
+                });
+            }
+            
+            // Category selection
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remove active class from all buttons
+                    document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    
+                    // Hide all sections
+                    document.querySelectorAll('.input-section').forEach(section => {
+                        section.classList.remove('active');
+                    });
+                    
+                    // Show selected section
+                    selectedCategory = this.dataset.category;
+                    document.getElementById(selectedCategory + '-section').classList.add('active');
+                });
+            });
+            
+            // Form submissions
+            document.getElementById('lotteryForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                submitLotteryForm();
+            });
+            
+            document.getElementById('loveForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                submitLoveForm();
+            });
+            
+            document.getElementById('businessForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                submitBusinessForm();
+            });
+            
+            document.getElementById('relocationForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                submitRelocationForm();
+            });
+        });
+        
+        function getBusinessLocation() {
+            getLocation('business');
+        }
+        
+        function getRelocationLocation() {
+            getLocation('relocation');
+        }
+        
+        function getLocation(type) {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        document.getElementById(type + 'Latitude').value = position.coords.latitude.toFixed(6);
+                        document.getElementById(type + 'Longitude').value = position.coords.longitude.toFixed(6);
+                    },
+                    function(error) {
+                        // Set default to Bangkok coordinates
+                        document.getElementById(type + 'Latitude').value = '13.7563';
+                        document.getElementById(type + 'Longitude').value = '100.5018';
+                        alert('ไม่สามารถหาตำแหน่งได้ ใช้พิกัดกรุงเทพฯ แทน');
+                    }
+                );
+            } else {
+                // Set default to Bangkok coordinates
+                document.getElementById(type + 'Latitude').value = '13.7563';
+                document.getElementById(type + 'Longitude').value = '100.5018';
+                alert('เบราว์เซอร์ไม่รองรับการหาตำแหน่ง ใช้พิกัดกรุงเทพฯ แทน');
+            }
+        }
+        
+        function submitLotteryForm() {
+            const formData = {
+                type: 'lottery',
+                date: document.getElementById('lotteryDate').value,
+                numbers: document.getElementById('lotteryNumbers').value,
+                lotteryType: document.getElementById('lotteryType').value,
+                amount: document.getElementById('lotteryAmount').value
+            };
+            
+            if (!formData.date || !formData.lotteryType) {
+                alert('กรุณากรอกข้อมูลที่จำเป็น');
+                return;
+            }
+            
+            sendToBot('lottery', formData);
+        }
+        
+        function submitLoveForm() {
+            const formData = {
+                type: 'love',
+                partnerName: document.getElementById('partnerName').value,
+                partnerBirthdate: document.getElementById('partnerBirthdate').value,
+                partnerBirthtime: document.getElementById('partnerBirthtime').value,
+                relationshipGoal: document.getElementById('relationshipGoal').value,
+                meetingDate: document.getElementById('meetingDate').value,
+                notes: document.getElementById('loveNotes').value
+            };
+            
+            if (!formData.relationshipGoal) {
+                alert('กรุณาเลือกเป้าหมายความสัมพันธ์');
+                return;
+            }
+            
+            sendToBot('partner', formData);
+        }
+        
+        function submitBusinessForm() {
+            const formData = {
+                type: 'business',
+                businessType: document.getElementById('businessType').value,
+                date: document.getElementById('businessDate').value,
+                time: document.getElementById('businessTime').value,
+                latitude: document.getElementById('businessLatitude').value,
+                longitude: document.getElementById('businessLongitude').value,
+                location: document.getElementById('businessLocation').value,
+                amount: document.getElementById('businessAmount').value,
+                notes: document.getElementById('businessNotes').value
+            };
+            
+            if (!formData.businessType || !formData.date || !formData.time || !formData.latitude || !formData.longitude) {
+                alert('กรุณากรอกข้อมูลที่จำเป็น');
+                return;
+            }
+            
+            sendToBot('business', formData);
+        }
+        
+        function submitRelocationForm() {
+            const formData = {
+                type: 'relocation',
+                relocationType: document.getElementById('relocationType').value,
+                date: document.getElementById('relocationDate').value,
+                latitude: document.getElementById('relocationLatitude').value,
+                longitude: document.getElementById('relocationLongitude').value,
+                destination: document.getElementById('relocationDestination').value,
+                reason: document.getElementById('relocationReason').value,
+                concerns: document.getElementById('relocationConcerns').value
+            };
+            
+            if (!formData.relocationType || !formData.date || !formData.latitude || !formData.longitude) {
+                alert('กรุณากรอกข้อมูลที่จำเป็น');
+                return;
+            }
+            
+            sendToBot('relocation', formData);
+        }
+        
+        function sendToBot(category, data) {
+            const message = category + ':' + JSON.stringify(data);
+            
+            console.log('Sending message:', message);
+            
+            if (typeof liff !== 'undefined' && liffInitialized && liff.isLoggedIn()) {
+                liff.sendMessages([{
+                    type: 'text',
+                    text: message
+                }]).then(() => {
+                    liff.closeWindow();
+                }).catch((err) => {
+                    console.error('Error sending message', err);
+                    alert('เกิดข้อผิดพลาดในการส่งข้อมูล: ' + err.message);
+                });
+            } else {
+                console.log('Data to send:', data);
+                alert('ข้อมูลถูกส่งแล้ว (โหมดทดสอบ)');
+            }
+        }
+    </script>
+</body>
+</html>

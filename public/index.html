@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LuckSeeker - กรอกข้อมูลเกิด</title>
-    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2.1/sdk.js"></script>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/versions/2.21.4/sdk.js"></script>
     <style>
         body {
             font-family: 'Prompt', sans-serif;
@@ -89,6 +89,69 @@
             color: #7B68EE;
         }
         
+        .location-search {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .location-search input {
+            flex: 1;
+        }
+        
+        .search-location-btn {
+            padding: 12px 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        
+        .autocomplete-container {
+            position: relative;
+        }
+        
+        .autocomplete-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e1e5e9;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .autocomplete-suggestion {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .autocomplete-suggestion:last-child {
+            border-bottom: none;
+        }
+        
+        .autocomplete-suggestion:hover,
+        .autocomplete-suggestion.selected {
+            background: #f8f7ff;
+            color: #7B68EE;
+        }
+        
+        .autocomplete-suggestion strong {
+            font-weight: 600;
+        }
+        
         .location-group {
             display: flex;
             gap: 10px;
@@ -150,7 +213,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌟 LuckSeeker</h1>
+            <h1>🌟 TUNEHORA</h1>
             <p>กรอกข้อมูลเกิดเพื่อดูดวงชะตา</p>
         </div>
         
@@ -175,14 +238,21 @@
             
             <div class="form-group">
                 <label>สถานที่เกิด *</label>
-                <div class="location-group">
+                <div class="location-search">
+                    <div class="autocomplete-container">
+                        <input type="text" id="birthLocation" placeholder="เช่น โรงพยาบาลภูมิพล, กรุงเทพฯ" required autocomplete="off">
+                        <div class="autocomplete-suggestions" id="autocompleteSuggestions"></div>
+                    </div>
+                    <button type="button" class="search-location-btn" onclick="searchLocation()">🔍</button>
+                </div>
+                <div class="location-group" style="margin-top: 10px;">
                     <div class="location-input">
                         <input type="text" id="latitude" placeholder="ละติจูด" readonly required>
                     </div>
                     <div class="location-input">
                         <input type="text" id="longitude" placeholder="ลองติจูด" readonly required>
                     </div>
-                    <button type="button" class="get-location-btn" onclick="getLocation()">📍</button>
+                    <button type="button" class="get-location-btn" onclick="getCurrentLocation()">📍</button>
                 </div>
                 <div class="error" id="locationError"></div>
             </div>
@@ -193,6 +263,7 @@
 
     <script>
         let selectedGender = null;
+        let liffInitialized = false;
         
         document.addEventListener('DOMContentLoaded', function() {
             if (typeof liff !== 'undefined') {
@@ -202,8 +273,10 @@
                         : '2007661445-rYZJ9qvv' // Replace with actual LIFF ID
                 }).then(() => {
                     console.log('LIFF initialized');
+                    liffInitialized = true;
                 }).catch((err) => {
                     console.error('LIFF initialization failed', err);
+                    liffInitialized = false;
                 });
             }
             
@@ -222,17 +295,57 @@
                 submitForm();
             });
             
-            // Auto-get location on load
-            getLocation();
+            // Don't auto-get location on load anymore
+            // getLocation();
+            
+            // Setup autocomplete for birth location
+            setupAutocomplete();
         });
         
-        function getLocation() {
+        function searchLocation() {
+            const locationName = document.getElementById('birthLocation').value.trim();
+            
+            if (!locationName) {
+                alert('กรุณากรอกชื่อสถานที่');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('locationError').textContent = 'กำลังค้นหาตำแหน่ง...';
+            
+            // Use OpenStreetMap Nominatim API for geocoding (free)
+            const encodedLocation = encodeURIComponent(locationName + ', Thailand');
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodedLocation}&limit=1`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.length > 0) {
+                        const location = data[0];
+                        document.getElementById('latitude').value = parseFloat(location.lat).toFixed(6);
+                        document.getElementById('longitude').value = parseFloat(location.lon).toFixed(6);
+                        document.getElementById('locationError').textContent = `พบตำแหน่ง: ${location.display_name}`;
+                        document.getElementById('locationError').style.color = '#28a745';
+                    } else {
+                        document.getElementById('locationError').textContent = 'ไม่พบตำแหน่งที่ค้นหา กรุณาลองใหม่หรือใช้ GPS';
+                        document.getElementById('locationError').style.color = '#dc3545';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error searching location:', error);
+                    document.getElementById('locationError').textContent = 'เกิดข้อผิดพลาดในการค้นหา กรุณาลองใหม่';
+                    document.getElementById('locationError').style.color = '#dc3545';
+                });
+        }
+        
+        function getCurrentLocation() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     function(position) {
                         document.getElementById('latitude').value = position.coords.latitude.toFixed(6);
                         document.getElementById('longitude').value = position.coords.longitude.toFixed(6);
-                        document.getElementById('locationError').textContent = '';
+                        document.getElementById('locationError').textContent = 'ใช้ตำแหน่งปัจจุบัน';
+                        document.getElementById('locationError').style.color = '#28a745';
                     },
                     function(error) {
                         let errorMsg = '';
@@ -248,14 +361,17 @@
                                 break;
                         }
                         document.getElementById('locationError').textContent = errorMsg;
+                        document.getElementById('locationError').style.color = '#dc3545';
                         
                         // Set default to Bangkok coordinates
                         document.getElementById('latitude').value = '13.7563';
                         document.getElementById('longitude').value = '100.5018';
+                        document.getElementById('locationError').textContent += ' (ใช้พิกัดกรุงเทพฯ แทน)';
                     }
                 );
             } else {
-                document.getElementById('locationError').textContent = 'เบราว์เซอร์ไม่รองรับการหาตำแหน่ง';
+                document.getElementById('locationError').textContent = 'เบราว์เซอร์ไม่รองรับการหาตำแหน่ง (ใช้พิกัดกรุงเทพฯ แทน)';
+                document.getElementById('locationError').style.color = '#dc3545';
                 // Set default to Bangkok coordinates
                 document.getElementById('latitude').value = '13.7563';
                 document.getElementById('longitude').value = '100.5018';
@@ -284,8 +400,10 @@
             
             // Send data to LINE
             const message = 'birth:' + JSON.stringify(formData);
+
+            console.log("message",message)
             
-            if (typeof liff !== 'undefined' && liff.isLoggedIn()) {
+            if (typeof liff !== 'undefined' && liffInitialized && liff.isLoggedIn()) {
                 liff.sendMessages([{
                     type: 'text',
                     text: message
@@ -293,13 +411,147 @@
                     liff.closeWindow();
                 }).catch((err) => {
                     console.error('Error sending message', err);
-                    alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
+                    alert(`เกิดข้อผิดพลาดในการส่งข้อมูล: ${err.message}`);
                 });
             } else {
-                // For testing without LINE
+                // For testing without LINE or LIFF not initialized
                 console.log('Birth data:', formData);
+                console.log('LIFF initialized:', liffInitialized);
+                console.log('LIFF logged in:', typeof liff !== 'undefined' ? liff.isLoggedIn() : 'undefined');
                 alert('ข้อมูลถูกส่งแล้ว (โหมดทดสอบ)');
             }
+        }
+        
+        let autocompleteTimeout;
+        let selectedIndex = -1;
+        
+        function setupAutocomplete() {
+            const input = document.getElementById('birthLocation');
+            const suggestionsContainer = document.getElementById('autocompleteSuggestions');
+            
+            input.addEventListener('input', function() {
+                const query = this.value.trim();
+                
+                // Clear existing timeout
+                if (autocompleteTimeout) {
+                    clearTimeout(autocompleteTimeout);
+                }
+                
+                // Hide suggestions if query is too short
+                if (query.length <= 5) {
+                    hideSuggestions();
+                    return;
+                }
+                
+                // Debounce API calls
+                autocompleteTimeout = setTimeout(() => {
+                    fetchSuggestions(query);
+                }, 300);
+            });
+            
+            input.addEventListener('keydown', function(e) {
+                const suggestions = suggestionsContainer.querySelectorAll('.autocomplete-suggestion');
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedIndex = Math.min(selectedIndex + 1, suggestions.length - 1);
+                    updateSelection(suggestions);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedIndex = Math.max(selectedIndex - 1, -1);
+                    updateSelection(suggestions);
+                } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                    e.preventDefault();
+                    selectSuggestion(suggestions[selectedIndex]);
+                } else if (e.key === 'Escape') {
+                    hideSuggestions();
+                }
+            });
+            
+            // Hide suggestions when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!input.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                    hideSuggestions();
+                }
+            });
+        }
+        
+        function fetchSuggestions(query) {
+            const encodedQuery = encodeURIComponent(query + ', Thailand');
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodedQuery}&limit=5&addressdetails=1`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    displaySuggestions(data, query);
+                })
+                .catch(error => {
+                    console.error('Error fetching suggestions:', error);
+                });
+        }
+        
+        function displaySuggestions(suggestions, query) {
+            const container = document.getElementById('autocompleteSuggestions');
+            
+            if (!suggestions || suggestions.length === 0) {
+                hideSuggestions();
+                return;
+            }
+            
+            container.innerHTML = '';
+            selectedIndex = -1;
+            
+            suggestions.forEach((suggestion, index) => {
+                const div = document.createElement('div');
+                div.className = 'autocomplete-suggestion';
+                div.dataset.lat = suggestion.lat;
+                div.dataset.lon = suggestion.lon;
+                div.dataset.name = suggestion.display_name;
+                
+                // Highlight matching text
+                const displayName = suggestion.display_name;
+                const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+                const highlightedName = displayName.replace(regex, '<strong>$1</strong>');
+                
+                div.innerHTML = highlightedName;
+                
+                div.addEventListener('click', function() {
+                    selectSuggestion(this);
+                });
+                
+                container.appendChild(div);
+            });
+            
+            container.style.display = 'block';
+        }
+        
+        function selectSuggestion(suggestionElement) {
+            const lat = suggestionElement.dataset.lat;
+            const lon = suggestionElement.dataset.lon;
+            const name = suggestionElement.dataset.name;
+            
+            document.getElementById('birthLocation').value = name;
+            document.getElementById('latitude').value = parseFloat(lat).toFixed(6);
+            document.getElementById('longitude').value = parseFloat(lon).toFixed(6);
+            document.getElementById('locationError').textContent = 'ตำแหน่งถูกเลือกแล้ว';
+            document.getElementById('locationError').style.color = '#28a745';
+            
+            hideSuggestions();
+        }
+        
+        function updateSelection(suggestions) {
+            suggestions.forEach((suggestion, index) => {
+                suggestion.classList.toggle('selected', index === selectedIndex);
+            });
+        }
+        
+        function hideSuggestions() {
+            document.getElementById('autocompleteSuggestions').style.display = 'none';
+            selectedIndex = -1;
+        }
+        
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         }
     </script>
 </body>
