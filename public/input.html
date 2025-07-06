@@ -200,7 +200,7 @@
         <!-- Lottery Section -->
         <div class="input-section" id="lottery-section">
             <div class="instruction">
-                <strong>🎰 ซื้อหวย:</strong> ข้อมูลการซื้อหวย เลขเด็ด และวันที่ต้องการซื้อ
+                <strong>🎰 ซื้อหวย:</strong> ข้อมูลการซื้อหวย วันที่ เวลา และสถานที่ที่ต้องการซื้อ
             </div>
             <form id="lotteryForm">
                 <div class="form-group">
@@ -208,8 +208,8 @@
                     <input type="date" id="lotteryDate" required>
                 </div>
                 <div class="form-group">
-                    <label for="lotteryNumbers">เลขที่สนใจ (ถ้ามี)</label>
-                    <input type="text" id="lotteryNumbers" placeholder="เช่น 123, 456, 789">
+                    <label for="lotteryTime">เวลาที่ต้องการซื้อหวย *</label>
+                    <input type="time" id="lotteryTime" required>
                 </div>
                 <div class="form-group">
                     <label for="lotteryType">ประเภทหวย *</label>
@@ -222,10 +222,22 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="lotteryAmount">จำนวนเงินที่ต้องการลงทุน</label>
-                    <input type="number" id="lotteryAmount" placeholder="บาท">
+                    <label>สถานที่ซื้อหวย *</label>
+                    <div class="location-group">
+                        <div class="location-input">
+                            <input type="text" id="lotteryLatitude" placeholder="ละติจูด" readonly required>
+                        </div>
+                        <div class="location-input">
+                            <input type="text" id="lotteryLongitude" placeholder="ลองติจูด" readonly required>
+                        </div>
+                        <button type="button" class="get-location-btn" onclick="getLotteryLocation()">📍</button>
+                    </div>
                 </div>
-                <button type="submit" class="submit-btn">ส่งข้อมูลซื้อหวย</button>
+                <div class="form-group">
+                    <label for="lotteryLocation">ชื่อสถานที่ซื้อหวย</label>
+                    <input type="text" id="lotteryLocation" placeholder="เช่น ร้านขายหวย ตลาดนัด 7-Eleven">
+                </div>
+                <button type="submit" class="submit-btn">ตรวจสอบคะแนนโชค</button>
             </form>
         </div>
         
@@ -434,7 +446,14 @@
                 e.preventDefault();
                 submitRelocationForm();
             });
+            
+            // Auto-select category from URL parameter
+            autoSelectCategory();
         });
+        
+        function getLotteryLocation() {
+            getLocation('lottery');
+        }
         
         function getBusinessLocation() {
             getLocation('business');
@@ -470,12 +489,14 @@
             const formData = {
                 type: 'lottery',
                 date: document.getElementById('lotteryDate').value,
-                numbers: document.getElementById('lotteryNumbers').value,
+                time: document.getElementById('lotteryTime').value,
                 lotteryType: document.getElementById('lotteryType').value,
-                amount: document.getElementById('lotteryAmount').value
+                latitude: document.getElementById('lotteryLatitude').value,
+                longitude: document.getElementById('lotteryLongitude').value,
+                location: document.getElementById('lotteryLocation').value
             };
             
-            if (!formData.date || !formData.lotteryType) {
+            if (!formData.date || !formData.time || !formData.lotteryType || !formData.latitude || !formData.longitude) {
                 alert('กรุณากรอกข้อมูลที่จำเป็น');
                 return;
             }
@@ -561,6 +582,39 @@
             } else {
                 console.log('Data to send:', data);
                 alert('ข้อมูลถูกส่งแล้ว (โหมดทดสอบ)');
+            }
+        }
+        
+        function autoSelectCategory() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const category = urlParams.get('category');
+            
+            if (category) {
+                // Map Thai category names to internal category IDs
+                const categoryMap = {
+                    'ซื้อหวย': 'lottery',
+                    'พบรัก': 'love', 
+                    'ดวงธุรกิจ': 'business',
+                    'ย้ายงาน': 'relocation'
+                };
+                
+                const categoryId = categoryMap[category];
+                
+                if (categoryId) {
+                    // Find and click the corresponding category button
+                    const categoryBtn = document.querySelector(`[data-category="${categoryId}"]`);
+                    if (categoryBtn) {
+                        categoryBtn.click();
+                        
+                        // Scroll to the form section
+                        setTimeout(() => {
+                            const formSection = document.getElementById(categoryId + '-section');
+                            if (formSection) {
+                                formSection.scrollIntoView({ behavior: 'smooth' });
+                            }
+                        }, 100);
+                    }
+                }
             }
         }
     </script>

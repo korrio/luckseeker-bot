@@ -11,6 +11,15 @@ class BirthChartService {
     try {
       const [year, month, day] = birthdate.split('-').map(Number);
       const [hour, minute] = birthtime.split(':').map(Number);
+      
+      // Ensure latitude and longitude are numbers
+      const lat = parseFloat(latitude);
+      const lon = parseFloat(longitude);
+      
+      // Validate coordinates
+      if (isNaN(lat) || isNaN(lon)) {
+        throw new Error('Invalid latitude or longitude values');
+      }
 
       // Calculate Julian Day
       const julianDay = swisseph.swe_julday(year, month, day, hour + minute/60, swisseph.SE_GREG_CAL);
@@ -37,12 +46,15 @@ class BirthChartService {
       };
 
       // Calculate planetary positions
+      let planetsCalculated = 0;
+      let planetsWithErrors = 0;
+      
       Object.keys(planets).forEach(planetName => {
         try {
           const planetId = planets[planetName];
           const result = swisseph.swe_calc_ut(julianDay, planetId, swisseph.SEFLG_SWIEPH);
           
-          if (result.flag >= 0) {
+          if (result.longitude !== undefined && !isNaN(result.longitude) && result.longitude >= 0) {
             const longitude = result.longitude;
             const sign = this.getZodiacSign(longitude);
             
@@ -51,45 +63,82 @@ class BirthChartService {
               sign: sign,
               degree: Math.floor(longitude % 30),
               absoluteDegree: Math.floor(longitude),
-              latitude: result.latitude,
-              distance: result.distance,
-              speed: result.longitudeSpeed
+              latitude: result.latitude || 0,
+              distance: result.distance || 0,
+              speed: result.longitudeSpeed || 0
             };
+            planetsCalculated++;
+          } else {
+            console.warn(`${planetName} calculation returned invalid result:`, result);
+            birthChart.planets[planetName] = this.getFallbackPlanetData(planetName);
+            planetsWithErrors++;
           }
         } catch (error) {
-          console.warn(`Error calculating ${planetName}:`, error.message);
+          console.error(`Error calculating ${planetName}:`, error.message);
           // Use fallback data for this planet
           birthChart.planets[planetName] = this.getFallbackPlanetData(planetName);
+          planetsWithErrors++;
         }
       });
 
+      // If no planets were calculated successfully, use all fallback data
+      if (planetsCalculated === 0 && Object.keys(birthChart.planets).length === 0) {
+        console.warn('No planets calculated, using all fallback data');
+        Object.keys(planets).forEach(planetName => {
+          birthChart.planets[planetName] = this.getFallbackPlanetData(planetName);
+        });
+      }
+
       // Calculate houses using Placidus system
       try {
-        const houses = swisseph.swe_houses(julianDay, latitude, longitude, 'P');
-        if (houses) {
+        const houses = swisseph.swe_houses(julianDay, lat, lon, 'P');
+        
+        if (houses && houses.house) {
           for (let i = 1; i <= 12; i++) {
-            birthChart.houses[`House${i}`] = {
-              longitude: houses.house[i],
-              sign: this.getZodiacSign(houses.house[i])
-            };
+            if (houses.house[i] !== undefined) {
+              birthChart.houses[`House${i}`] = {
+                longitude: houses.house[i],
+                sign: this.getZodiacSign(houses.house[i])
+              };
+            }
           }
           
           // Add ASC, MC, etc.
-          birthChart.houses.ASC = {
-            longitude: houses.ascendant,
-            sign: this.getZodiacSign(houses.ascendant)
-          };
-          birthChart.houses.MC = {
-            longitude: houses.mc,
-            sign: this.getZodiacSign(houses.mc)
-          };
+          if (houses.ascendant !== undefined) {
+            birthChart.houses.ASC = {
+              longitude: houses.ascendant,
+              sign: this.getZodiacSign(houses.ascendant)
+            };
+          }
+          if (houses.mc !== undefined) {
+            birthChart.houses.MC = {
+              longitude: houses.mc,
+              sign: this.getZodiacSign(houses.mc)
+            };
+          }
+        } else {
+          console.warn('House calculation returned invalid result');
+          // Add mock houses as fallback
+          this.addMockHouses(birthChart);
         }
       } catch (error) {
-        console.warn('Error calculating houses:', error.message);
+        console.error('Error calculating houses:', error.message);
+        // Add mock houses as fallback
+        this.addMockHouses(birthChart);
       }
 
       // Calculate aspects between planets
-      birthChart.aspects = this.calculateAspects(birthChart.planets);
+      try {
+        if (Object.keys(birthChart.planets).length > 0) {
+          birthChart.aspects = this.calculateAspects(birthChart.planets);
+        } else {
+          console.warn('No planets available for aspect calculation');
+          birthChart.aspects = [];
+        }
+      } catch (error) {
+        console.error('Error calculating aspects:', error.message);
+        birthChart.aspects = [];
+      }
 
       return birthChart;
     } catch (error) {
@@ -104,7 +153,20 @@ class BirthChartService {
       'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'
     ];
     
-    const signIndex = Math.floor(longitude / 30);
+    // Ensure longitude is valid and within 0-360 range
+    if (isNaN(longitude) || longitude < 0) {
+      return 'Aries'; // Default fallback
+    }
+    
+    // Normalize longitude to 0-360 range
+    const normalizedLongitude = longitude % 360;
+    const signIndex = Math.floor(normalizedLongitude / 30);
+    
+    // Ensure signIndex is within valid range
+    if (signIndex < 0 || signIndex >= signs.length) {
+      return 'Aries'; // Default fallback
+    }
+    
     return signs[signIndex];
   }
 
@@ -319,6 +381,28 @@ class BirthChartService {
       'opposition': -40
     };
     return scores[aspectName] || 0;
+  }
+
+  addMockHouses(birthChart) {
+    // Add mock house data as fallback
+    const mockHouses = {
+      House1: { longitude: 15, sign: 'Aries' },
+      House2: { longitude: 45, sign: 'Taurus' },
+      House3: { longitude: 75, sign: 'Gemini' },
+      House4: { longitude: 105, sign: 'Cancer' },
+      House5: { longitude: 135, sign: 'Leo' },
+      House6: { longitude: 165, sign: 'Virgo' },
+      House7: { longitude: 195, sign: 'Libra' },
+      House8: { longitude: 225, sign: 'Scorpio' },
+      House9: { longitude: 255, sign: 'Sagittarius' },
+      House10: { longitude: 285, sign: 'Capricorn' },
+      House11: { longitude: 315, sign: 'Aquarius' },
+      House12: { longitude: 345, sign: 'Pisces' },
+      ASC: { longitude: 15, sign: 'Aries' },
+      MC: { longitude: 285, sign: 'Capricorn' }
+    };
+
+    Object.assign(birthChart.houses, mockHouses);
   }
 }
 

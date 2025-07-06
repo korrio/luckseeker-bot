@@ -3,6 +3,7 @@ const axios = require('axios');
 const config = require('../config');
 const fortuneService = require('../services/fortuneService');
 const birthChartService = require('../services/birthChartService');
+const database = require('../services/database');
 
 const lineConfig = {
   channelAccessToken: config.line.channelAccessToken,
@@ -261,7 +262,7 @@ async function handleEvent(event) {
     const userId = event.source.userId;
     const message = event.message.text.trim();
 
-    if (message === 'เริ่มต้น' || message.includes('สวัสดี') || message.includes('hello') || message.includes('ไง')) {
+    if (message === 'เริ่มต้น' || message === 'เริ่มใหม่' || message.includes('สวัสดี') || message.includes('hello') || message.includes('ไง')) {
       return handleGreeting(event);
     }
 
@@ -269,24 +270,8 @@ async function handleEvent(event) {
       return handleBirthChart(event, message);
     }
 
-    if (message === 'ซื้อหวย' || message === 'พบรัก' || message === 'ดวงธุรกิจ' || message === 'ย้ายงาน') {
-      // Check if user has cached birth data
-      const cachedBirthChart = global.userBirthChart?.[userId];
-      const cachedBirthData = global.userBirthData?.[userId];
-      
-      if (cachedBirthChart && cachedBirthData) {
-        console.log(`Using cached birth data for user ${userId}, saved at ${cachedBirthData.timestamp}`);
-        return handleFortuneCategory(event, message);
-      } else {
-        return client.replyMessage(event.replyToken, {
-          type: 'text',
-          text: 'กรุณากรอกข้อมูลเกิดก่อนค่ะ'
-        });
-      }
-    }
-
     // Handle additional data inputs for fortune categories
-    if (message.startsWith('business:') || message.startsWith('love:') || message.startsWith('relocation:')) {
+    if (message.startsWith('business:') || message.startsWith('love:') || message.startsWith('relocation:') || message.startsWith('lottery:') || message.startsWith('partner:')) {
       return handleAdditionalData(event, message);
     }
 
@@ -316,7 +301,7 @@ async function handleEvent(event) {
 
 async function handleGreeting(event) {
   const userId = event.source.userId;
-  const cachedBirthData = global.userBirthData?.[userId];
+  const cachedBirthData = await database.getBirthData(userId);
   
   // Check if user has cached birth data
   if (cachedBirthData) {
@@ -372,47 +357,38 @@ async function handleGreeting(event) {
             {
               type: 'button',
               action: {
-                type: 'message',
+                type: 'postback',
                 label: '🎰 ซื้อหวย',
-                text: 'ซื้อหวย'
+                data: 'action=select_category&category=ซื้อหวย'
               },
               style: 'primary'
             },
             {
               type: 'button',
               action: {
-                type: 'message',
+                type: 'postback',
                 label: '💕 พบรัก',
-                text: 'พบรัก'
+                data: 'action=select_category&category=พบรัก'
               },
               style: 'primary'
             },
             {
               type: 'button',
               action: {
-                type: 'message',
+                type: 'postback',
                 label: '💼 ดวงธุรกิจ',
-                text: 'ดวงธุรกิจ'
+                data: 'action=select_category&category=ดวงธุรกิจ'
               },
               style: 'primary'
             },
             {
               type: 'button',
               action: {
-                type: 'message',
+                type: 'postback',
                 label: '🔄 ย้ายงาน',
-                text: 'ย้ายงาน'
+                data: 'action=select_category&category=ย้ายงาน'
               },
               style: 'primary'
-            },
-            {
-              type: 'button',
-              action: {
-                type: 'uri',
-                label: 'กรอกข้อมูลเพิ่มเติม',
-                uri: `https://miniapp.line.me/${config.line.liffId}/input.html`
-              },
-              style: 'secondary'
             }
           ]
         }
@@ -508,6 +484,8 @@ async function handleBirthChart(event, message) {
       longitude
     });
 
+    console.log("birthChart++",birthChart)
+
     const fortuneCategories = {
       type: 'flex',
       altText: 'เลือกหมวดโชคลาภ',
@@ -538,36 +516,36 @@ async function handleBirthChart(event, message) {
             {
               type: 'button',
               action: {
-                type: 'message',
+                type: 'postback',
                 label: '🎰 ซื้อหวย',
-                text: 'ซื้อหวย'
+                data: 'action=select_category&category=ซื้อหวย'
               },
               style: 'primary'
             },
             {
               type: 'button',
               action: {
-                type: 'message',
+                type: 'postback',
                 label: '💕 พบรัก',
-                text: 'พบรัก'
+                data: 'action=select_category&category=พบรัก'
               },
               style: 'primary'
             },
             {
               type: 'button',
               action: {
-                type: 'message',
+                type: 'postback',
                 label: '💼 ดวงธุรกิจ',
-                text: 'ดวงธุรกิจ'
+                data: 'action=select_category&category=ดวงธุรกิจ'
               },
               style: 'primary'
             },
             {
               type: 'button',
               action: {
-                type: 'message',
+                type: 'postback',
                 label: '🔄 ย้ายงาน',
-                text: 'ย้ายงาน'
+                data: 'action=select_category&category=ย้ายงาน'
               },
               style: 'primary'
             }
@@ -576,19 +554,17 @@ async function handleBirthChart(event, message) {
       }
     };
 
-    // Cache both birth chart and original birth data
-    global.userBirthChart = global.userBirthChart || {};
-    global.userBirthData = global.userBirthData || {};
+    // Save both birth chart and original birth data to database
+    const userId = event.source.userId;
     
-    global.userBirthChart[event.source.userId] = birthChart;
-    global.userBirthData[event.source.userId] = {
+    await database.setBirthChart(userId, birthChart);
+    await database.setBirthData(userId, {
       birthdate,
       birthtime,
       latitude,
       longitude,
-      gender,
-      timestamp: new Date().toISOString()
-    };
+      gender
+    });
 
     return client.replyMessage(event.replyToken, fortuneCategories);
   } catch (error) {
@@ -602,34 +578,24 @@ async function handleBirthChart(event, message) {
 
 async function handleFortuneCategory(event, category) {
   const userId = event.source.userId;
-  const birthChart = global.userBirthChart?.[userId];
+  const birthChart = await database.getBirthChart(userId);
 
   if (!birthChart) {
     return client.replyMessage(event.replyToken, {
       type: 'text',
-      text: 'กรุณากรอกข้อมูลเกิดก่อนค่ะ'
+      text: 'กรุณากรอกข้อมูลเกิดก่อนค่ะ 2'
     });
   }
 
-  // Check if additional data is needed for this category
+  // Always redirect to input page for additional data - users need to re-input each time
   if (category === 'ดวงธุรกิจ') {
-    // Check if business data already exists
-    const businessData = global.userBusinessData?.[userId];
-    if (!businessData) {
-      return requestBusinessData(event);
-    }
+    return redirectToInputPage(event, 'ดวงธุรกิจ');
   } else if (category === 'พบรัก') {
-    // Check if partner data already exists
-    const partnerData = global.userPartnerData?.[userId];
-    if (!partnerData) {
-      return requestPartnerData(event);
-    }
+    return redirectToInputPage(event, 'พบรัก');
   } else if (category === 'ย้ายงาน') {
-    // Check if relocation data already exists
-    const relocationData = global.userRelocationData?.[userId];
-    if (!relocationData) {
-      return requestRelocationData(event);
-    }
+    return redirectToInputPage(event, 'ย้ายงาน');
+  } else if (category === 'ซื้อหวย') {
+    return redirectToInputPage(event, 'ซื้อหวย');
   }
 
   try {
@@ -642,11 +608,7 @@ async function handleFortuneCategory(event, category) {
     }
 
     // Prepare additional data for fortune calculation
-    const additionalData = {
-      businessData: global.userBusinessData?.[userId],
-      partnerData: global.userPartnerData?.[userId],
-      relocationData: global.userRelocationData?.[userId]
-    };
+    const additionalData = await database.getAllAdditionalData(userId);
 
     const fortuneResult = await fortuneService.getFortune(birthChart, category, additionalData);
 
@@ -699,8 +661,128 @@ async function handleFortuneCategory(event, category) {
   }
 }
 
+async function processFortuneCalculation(event, category) {
+  const userId = event.source.userId;
+  const birthChart = await database.getBirthChart(userId);
+
+  if (!birthChart) {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'กรุณากรอกข้อมูลเกิดก่อนค่ะ'
+    });
+  }
+
+  try {
+    // Show loading animation while processing AI request
+    try {
+      await showLoadingAnimation(userId, 20);
+    } catch (loadingError) {
+      console.warn('Failed to show loading animation:', loadingError);
+      // Continue without loading animation if it fails
+    }
+
+    // Prepare additional data for fortune calculation
+    const additionalData = await database.getAllAdditionalData(userId);
+
+    const fortuneResult = await fortuneService.getFortune(birthChart, category, additionalData);
+
+    console.log("fortuneResult", fortuneResult);
+    
+    // Return plain text instead of flex message
+    try {
+      console.log('Attempting to send message:', {
+        replyToken: event.replyToken,
+        textLength: fortuneResult?.length || 0,
+        textPreview: fortuneResult?.substring(0, 100) + '...'
+      });
+      
+      // Validate and sanitize the message
+      let messageText = fortuneResult;
+      
+      // Check if message is too long (LINE limit is 5000 characters)
+      if (messageText && messageText.length > 5000) {
+        messageText = messageText.substring(0, 4900) + '...\n\n(ข้อความถูกย่อเนื่องจากความยาวเกินกำหนด)';
+      }
+      
+      // Check if message is empty or null
+      if (!messageText || messageText.trim() === '') {
+        messageText = 'ขออภัยค่ะ ไม่สามารถดูโชคลาภได้ในขณะนี้ กรุณาลองใหม่อีกครั้งค่ะ';
+      }
+      
+      return await client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: messageText
+      });
+    } catch (lineError) {
+      console.error('LINE API Error:', {
+        error: lineError.message,
+        statusCode: lineError.statusCode,
+        originalError: lineError.originalError?.response?.data || lineError.originalError
+      });
+      
+      // Try sending a simple fallback message
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'ขออภัยค่ะ มีปัญหาในการส่งข้อมูลโชคลาภ กรุณาลองใหม่อีกครั้งค่ะ'
+      });
+    }
+  } catch (error) {
+    console.error('Error getting fortune:', error);
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'ขออภัยค่ะ ไม่สามารถดูโชคลาภได้ในขณะนี้ กรุณาลองใหม่อีกครั้งค่ะ'
+    });
+  }
+}
+
 async function handlePostback(event) {
   const data = event.postback.data;
+  
+  // Handle category selection postbacks
+  if (data.startsWith('action=select_category')) {
+    const params = new URLSearchParams(data);
+    const action = params.get('action');
+    const category = params.get('category');
+    
+    if (action === 'select_category' && category) {
+      const userId = event.source.userId;
+      // Check if user has cached birth data
+      const cachedBirthChart = await database.getBirthChart(userId);
+      const cachedBirthData = await database.getBirthData(userId);
+      
+      if (cachedBirthChart && cachedBirthData) {
+        console.log(`Using cached birth data for user ${userId}, saved at ${cachedBirthData.timestamp}`);
+        return handleFortuneCategory(event, category);
+      } else {
+        return client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'กรุณากรอกข้อมูลเกิดก่อนค่ะ'
+        });
+      }
+    }
+  }
+
+  // Handle fortune analysis postbacks
+  if (data.startsWith('action=analyze_')) {
+    const params = new URLSearchParams(data);
+    const action = params.get('action');
+    const category = params.get('category');
+    
+    if (action && category) {
+      // Map actions to categories for fortune analysis
+      const actionMap = {
+        'analyze_lottery': 'ซื้อหวย',
+        'analyze_love': 'พบรัก',
+        'analyze_business': 'ดวงธุรกิจ',
+        'analyze_relocation': 'ย้ายงาน'
+      };
+      
+      if (actionMap[action] === category) {
+        // Call fortune calculation directly instead of handleFortuneCategory
+        return processFortuneCalculation(event, category);
+      }
+    }
+  }
   
   if (data === 'action=analyze_again') {
     // Show fortune categories again
@@ -729,47 +811,38 @@ async function handlePostback(event) {
             {
               type: 'button',
               action: {
-                type: 'message',
+                type: 'postback',
                 label: '🎰 ซื้อหวย',
-                text: 'ซื้อหวย'
+                data: 'action=select_category&category=ซื้อหวย'
               },
               style: 'primary'
             },
             {
               type: 'button',
               action: {
-                type: 'message',
+                type: 'postback',
                 label: '💕 พบรัก',
-                text: 'พบรัก'
+                data: 'action=select_category&category=พบรัก'
               },
               style: 'primary'
             },
             {
               type: 'button',
               action: {
-                type: 'message',
+                type: 'postback',
                 label: '💼 ดวงธุรกิจ',
-                text: 'ดวงธุรกิจ'
+                data: 'action=select_category&category=ดวงธุรกิจ'
               },
               style: 'primary'
             },
             {
               type: 'button',
               action: {
-                type: 'message',
+                type: 'postback',
                 label: '🔄 ย้ายงาน',
-                text: 'ย้ายงาน'
+                data: 'action=select_category&category=ย้ายงาน'
               },
               style: 'primary'
-            },
-            {
-              type: 'button',
-              action: {
-                type: 'uri',
-                label: 'กรอกข้อมูลเพิ่มเติม',
-                uri: `https://miniapp.line.me/${config.line.liffId}/input.html`
-              },
-              style: 'secondary'
             }
           ]
         }
@@ -798,6 +871,74 @@ async function handlePostback(event) {
     type: 'text',
     text: 'ขออภัยค่ะ ไม่เข้าใจคำสั่งที่เลือก กรุณาลองใหม่อีกครั้งค่ะ'
   });
+}
+
+async function redirectToInputPage(event, category) {
+  const categoryMap = {
+    'ซื้อหวย': { emoji: '🎰', text: 'ซื้อหวย' },
+    'พบรัก': { emoji: '💕', text: 'พบรัก' },
+    'ดวงธุรกิจ': { emoji: '💼', text: 'ดวงธุรกิจ' },
+    'ย้ายงาน': { emoji: '🔄', text: 'ย้ายงาน' }
+  };
+
+  const categoryInfo = categoryMap[category] || { emoji: '✨', text: category };
+
+  const flexMessage = {
+    type: 'flex',
+    altText: `กรอกข้อมูลเพิ่มเติมสำหรับ${categoryInfo.text}`,
+    contents: {
+      type: 'bubble',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: `${categoryInfo.emoji} ${categoryInfo.text}`,
+            weight: 'bold',
+            size: 'xl',
+            color: '#7B68EE'
+          },
+          {
+            type: 'text',
+            text: 'กรุณากรอกข้อมูลเพิ่มเติมเพื่อการดูดวงที่แม่นยำยิ่งขึ้น',
+            size: 'md',
+            margin: 'md',
+            wrap: true
+          },
+          {
+            type: 'separator',
+            margin: 'md'
+          },
+          {
+            type: 'text',
+            text: 'คลิกปุ่มด้านล่างเพื่อเปิดหน้ากรอกข้อมูล',
+            size: 'sm',
+            margin: 'md',
+            color: '#666666'
+          }
+        ]
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'button',
+            action: {
+              type: 'uri',
+              label: 'กรอกข้อมูลเพิ่มเติม',
+              uri: `https://miniapp.line.me/${config.line.liffId}/input.html?category=${encodeURIComponent(category)}`
+            },
+            style: 'primary',
+            color: '#7B68EE'
+          }
+        ]
+      }
+    }
+  };
+
+  return client.replyMessage(event.replyToken, flexMessage);
 }
 
 async function handleGeneralMessage(event) {
@@ -841,6 +982,7 @@ const webhookHandler = (req, res) => {
         stack: err.stack,
         events: req.body.events
       });
+      console.log("req.body.events", JSON.stringify(req.body.events, null, 2));
       res.status(500).json({ error: 'Internal server error' });
     });
 };
@@ -882,16 +1024,7 @@ async function requestBusinessData(event) {
             size: 'sm',
             margin: 'sm',
             color: '#999999'
-          },
-          {
-              type: 'button',
-              action: {
-                type: 'uri',
-                label: 'กรอกข้อมูลเพิ่มเติม',
-                uri: `https://miniapp.line.me/${config.line.liffId}/input.html`
-              },
-              style: 'secondary'
-            }
+          }
         ]
       }
     }
@@ -936,16 +1069,7 @@ async function requestPartnerData(event) {
             size: 'sm',
             margin: 'sm',
             color: '#999999'
-          },
-          {
-              type: 'button',
-              action: {
-                type: 'uri',
-                label: 'กรอกข้อมูลเพิ่มเติม',
-                uri: `https://miniapp.line.me/${config.line.liffId}/input.html`
-              },
-              style: 'secondary'
-            }
+          }
         ]
       }
     }
@@ -1020,64 +1144,114 @@ async function handleAdditionalData(event, message) {
   const userId = event.source.userId;
   
   try {
-    if (message.startsWith('business:')) {
-      const data = message.replace('business:', '').split(',');
-      if (data.length >= 3) {
-        global.userBusinessData = global.userBusinessData || {};
-        global.userBusinessData[userId] = {
-          date: data[0].trim(),
-          time: data[1].trim(),
-          location: data[2].trim(),
-          timestamp: new Date().toISOString()
-        };
-        
-        return client.replyMessage(event.replyToken, {
-          type: 'text',
-          text: 'ได้รับข้อมูลการนัดหมายธุรกิจแล้วค่ะ กำลังวิเคราะห์ดวงธุรกิจ...'
-        }).then(() => {
-          // Process business fortune after confirming data received
-          return handleFortuneCategory(event, 'ดวงธุรกิจ');
-        });
-      }
-    } else if (message.startsWith('love:')) {
-      const data = message.replace('love:', '').split(',');
-      if (data.length >= 2) {
-        global.userPartnerData = global.userPartnerData || {};
-        global.userPartnerData[userId] = {
-          birthdate: data[0].trim(),
-          birthtime: data[1].trim(),
-          timestamp: new Date().toISOString()
-        };
-        
-        return client.replyMessage(event.replyToken, {
-          type: 'text',
-          text: 'ได้รับข้อมูลคู่รักแล้วค่ะ กำลังวิเคราะห์ดวงความรัก...'
-        }).then(() => {
-          // Process love fortune after confirming data received
-          const data = handleFortuneCategory(event, 'พบรัก');
-          console.log("handleFortuneCategory",handleFortuneCategory)
-          return data
-        });
-      }
+    let category, data, responseText;
+    
+    if (message.startsWith('lottery:')) {
+      category = 'ซื้อหวย';
+      data = JSON.parse(message.replace('lottery:', ''));
+      
+      await database.setAdditionalData(userId, 'lottery', data);
+      
+      responseText = 'ได้รับข้อมูลการซื้อหวยแล้วค่ะ กำลังวิเคราะห์ดวงโชคลาภ...';
+      
+    } else if (message.startsWith('business:')) {
+      category = 'ดวงธุรกิจ';
+      data = JSON.parse(message.replace('business:', ''));
+      
+      await database.setAdditionalData(userId, 'business', data);
+      
+      responseText = 'ได้รับข้อมูลการนัดหมายธุรกิจแล้วค่ะ กำลังวิเคราะห์ดวงธุรกิจ...';
+      
+    } else if (message.startsWith('partner:')) {
+      category = 'พบรัก';
+      data = JSON.parse(message.replace('partner:', ''));
+      
+      await database.setAdditionalData(userId, 'partner', data);
+      
+      responseText = 'ได้รับข้อมูลคู่รักแล้วค่ะ กำลังวิเคราะห์ดวงความรัก...';
+      
     } else if (message.startsWith('relocation:')) {
-      const data = message.replace('relocation:', '').split(',');
-      if (data.length >= 3) {
-        global.userRelocationData = global.userRelocationData || {};
-        global.userRelocationData[userId] = {
-          date: data[0].trim(),
-          time: data[1].trim(),
-          location: data[2].trim(),
-          timestamp: new Date().toISOString()
-        };
-        
-        return client.replyMessage(event.replyToken, {
-          type: 'text',
-          text: 'ได้รับข้อมูลการย้ายแล้วค่ะ กำลังวิเคราะห์ดวงการย้าย...'
-        }).then(() => {
-          // Process relocation fortune after confirming data received
-          return handleFortuneCategory(event, 'ย้ายงาน');
+      category = 'ย้ายงาน';
+      data = JSON.parse(message.replace('relocation:', ''));
+      
+      await database.setAdditionalData(userId, 'relocation', data);
+      
+      responseText = 'ได้รับข้อมูลการย้ายแล้วค่ะ กำลังวิเคราะห์ดวงการย้าย...';
+      
+    } else if (message.startsWith('love:')) {
+      // Legacy support for old format
+      category = 'พบรัก';
+      const oldData = message.replace('love:', '').split(',');
+      if (oldData.length >= 2) {
+        await database.setAdditionalData(userId, 'partner', {
+          birthdate: oldData[0].trim(),
+          birthtime: oldData[1].trim()
         });
+        responseText = 'ได้รับข้อมูลคู่รักแล้วค่ะ กำลังวิเคราะห์ดวงความรัก...';
       }
+    }
+    
+    if (category && responseText) {
+      // Create postback button for fortune analysis
+      const categoryMap = {
+        'ซื้อหวย': { emoji: '🎰', action: 'analyze_lottery' },
+        'พบรัก': { emoji: '💕', action: 'analyze_love' },
+        'ดวงธุรกิจ': { emoji: '💼', action: 'analyze_business' },
+        'ย้ายงาน': { emoji: '🔄', action: 'analyze_relocation' }
+      };
+
+      const categoryInfo = categoryMap[category];
+
+      const flexMessage = {
+        type: 'flex',
+        altText: `${responseText}`,
+        contents: {
+          type: 'bubble',
+          body: {
+            type: 'box',
+            layout: 'vertical',
+            contents: [
+              {
+                type: 'text',
+                text: responseText,
+                weight: 'bold',
+                size: 'md',
+                color: '#7B68EE',
+                wrap: true
+              },
+              {
+                type: 'separator',
+                margin: 'md'
+              },
+              {
+                type: 'text',
+                text: 'คลิกปุ่มด้านล่างเพื่อเริ่มการวิเคราะห์',
+                size: 'sm',
+                margin: 'md',
+                color: '#666666'
+              }
+            ]
+          },
+          footer: {
+            type: 'box',
+            layout: 'vertical',
+            contents: [
+              {
+                type: 'button',
+                action: {
+                  type: 'postback',
+                  label: `${categoryInfo.emoji} เริ่มวิเคราะห์${category}`,
+                  data: `action=${categoryInfo.action}&category=${encodeURIComponent(category)}`
+                },
+                style: 'primary',
+                color: '#7B68EE'
+              }
+            ]
+          }
+        }
+      };
+
+      return client.replyMessage(event.replyToken, flexMessage);
     }
     
     // If format is incorrect

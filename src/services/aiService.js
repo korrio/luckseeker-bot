@@ -106,7 +106,7 @@ ${JSON.stringify(birthChart, null, 2)}
     }
   }
 
-  async getFortune(birthChart, category, preferredProvider = 'claude') {
+  async getFortune(birthChart, category, preferredProvider = 'chatgpt') {
     try {
       if (preferredProvider === 'claude' && config.ai.anthropicApiKey) {
         return await this.getFortuneFromClaude(birthChart, category);

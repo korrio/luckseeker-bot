@@ -69,3 +69,6 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+
+# Database files (JSON-based storage)
+data/
