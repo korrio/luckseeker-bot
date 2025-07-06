@@ -32,15 +32,230 @@ async function showLoadingAnimation(userId, loadingSeconds = 20) {
   }
 }
 
-async function handleEvent(event) {
-  if (event.type !== 'message' || event.message.type !== 'text') {
-    return Promise.resolve(null);
-  }
-
-  const userId = event.source.userId;
-  const message = event.message.text.trim();
+// Helper function to parse fortune result and extract key information
+function parseFortuneResult(fortuneText) {
+  const parsed = {
+    timestamp: new Date().toLocaleDateString('th-TH') + ' ' + new Date().toLocaleTimeString('th-TH'),
+    luckyScore: null,
+    luckyScoreStatus: '',
+    luckyScoreColor: '#999999',
+    planets: '',
+    luckyNumbers: {
+      twoDigit: null,
+      threeDigit: null
+    },
+    advice: ''
+  };
 
   try {
+    // Extract timestamp
+    const timeMatch = fortuneText.match(/\*\*ช่วงเวลา\*\*\s*:\s*(.+)/);
+    if (timeMatch) {
+      parsed.timestamp = timeMatch[1].trim();
+    }
+
+    // Extract Lucky Score
+    const scoreMatch = fortuneText.match(/\*\*Lucky-Score\*\*\s*:\s*(\d+)\s*\/\s*100/);
+    if (scoreMatch) {
+      parsed.luckyScore = parseInt(scoreMatch[1]);
+      if (parsed.luckyScore >= 80) {
+        parsed.luckyScoreStatus = '✅ เหนือเกณฑ์';
+        parsed.luckyScoreColor = '#4CAF50';
+      } else if (parsed.luckyScore >= 60) {
+        parsed.luckyScoreStatus = '⚠️ ปานกลาง';
+        parsed.luckyScoreColor = '#FFA500';
+      } else {
+        parsed.luckyScoreStatus = '❌ ต่ำกว่าเกณฑ์';
+        parsed.luckyScoreColor = '#FF6B6B';
+      }
+    }
+
+    // Extract planets/aspects
+    const planetsMatch = fortuneText.match(/\*\*ดาวจรเด่น\*\*\s*:\s*(.+?)(?=\*\*|$)/s);
+    if (planetsMatch) {
+      parsed.planets = planetsMatch[1].trim().replace(/\n/g, ' ');
+    }
+
+    // Extract lucky numbers - try different patterns
+    const luckyNumbersMatch = fortuneText.match(/\*\*เลขเด็ด\*\*\s*:\s*([\s\S]*?)(?=\*\*|$)/);
+    if (luckyNumbersMatch) {
+      const numbersText = luckyNumbersMatch[1];
+      
+      // Extract 2-digit numbers
+      const twoDigitMatches = numbersText.match(/(\d{2})/g);
+      if (twoDigitMatches && twoDigitMatches.length > 0) {
+        parsed.luckyNumbers.twoDigit = twoDigitMatches[0];
+      }
+      
+      // Extract 3-digit numbers
+      const threeDigitMatches = numbersText.match(/(\d{3})/g);
+      if (threeDigitMatches && threeDigitMatches.length > 0) {
+        parsed.luckyNumbers.threeDigit = threeDigitMatches[0];
+      }
+    }
+
+    // Extract advice
+    const adviceMatch = fortuneText.match(/\*\*คำแนะนำ\*\*\s*:\s*([\s\S]+?)(?:────|$)/);
+    if (adviceMatch) {
+      parsed.advice = adviceMatch[1].trim().replace(/\n/g, ' ');
+    }
+
+    // Log the parsed result for debugging
+    console.log('Parsed fortune result:', {
+      luckyScore: parsed.luckyScore,
+      planets: parsed.planets.substring(0, 100) + '...',
+      hasLuckyNumbers: !!(parsed.luckyNumbers.twoDigit || parsed.luckyNumbers.threeDigit),
+      hasAdvice: !!parsed.advice
+    });
+
+  } catch (error) {
+    console.warn('Error parsing fortune result:', error);
+    // Keep the empty default values if parsing fails
+  }
+
+  return parsed;
+}
+
+// Helper function to create rich message template
+function createFortuneRichMessage(fortuneText, category) {
+  const parsed = parseFortuneResult(fortuneText);
+  
+  // Create a minimized flex message to avoid LINE API 400 errors
+  const richMessage = {
+    type: "flex",
+    altText: `Lucky Score: ${parsed.luckyScore}/100`,
+    contents: {
+      type: "bubble",
+      body: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "text",
+            text: `🎯 Lucky Score: ${parsed.luckyScore}/100`,
+            weight: "bold",
+            size: "lg",
+            color: parsed.luckyScoreColor
+          },
+          {
+            type: "text",
+            text: parsed.luckyScoreStatus,
+            size: "sm",
+            color: parsed.luckyScoreColor,
+            margin: "sm"
+          }
+        ]
+      }
+    }
+  };
+
+  // Add only essential content to keep message small
+  const bodyContents = richMessage.contents.body.contents;
+
+  // Add planets info (shortened)
+  if (parsed.planets && parsed.planets !== 'ไม่มีดาวจรที่สามารถสร้างความสัมพันธ์กับดาวกำเนิดในองศาที่ให้คะแนนบวก') {
+    bodyContents.push(
+      { type: "separator", margin: "md" },
+      {
+        type: "text",
+        text: "⭐ ดาวจรเด่น",
+        weight: "bold",
+        margin: "md",
+        size: "sm"
+      },
+      {
+        type: "text",
+        text: parsed.planets.substring(0, 50) + (parsed.planets.length > 50 ? "..." : ""),
+        wrap: true,
+        size: "xs",
+        margin: "sm"
+      }
+    );
+  }
+
+  // Add lucky numbers if available
+  if (parsed.luckyNumbers.twoDigit || parsed.luckyNumbers.threeDigit) {
+    let numbersText = "";
+    if (parsed.luckyNumbers.twoDigit) {
+      numbersText = `🎲 ${parsed.luckyNumbers.twoDigit}`;
+    }
+    if (parsed.luckyNumbers.threeDigit) {
+      numbersText += numbersText ? `, ${parsed.luckyNumbers.threeDigit}` : `🎲 ${parsed.luckyNumbers.threeDigit}`;
+    }
+    
+    bodyContents.push(
+      { type: "separator", margin: "md" },
+      {
+        type: "text",
+        text: numbersText,
+        size: "md",
+        color: "#4CAF50",
+        weight: "bold",
+        margin: "md"
+      }
+    );
+  }
+
+  // Add shortened advice
+  if (parsed.advice) {
+    bodyContents.push(
+      { type: "separator", margin: "md" },
+      {
+        type: "text",
+        text: parsed.advice.substring(0, 80) + (parsed.advice.length > 80 ? "..." : ""),
+        wrap: true,
+        size: "xs",
+        margin: "md"
+      }
+    );
+  }
+
+  // Add simple button
+  bodyContents.push(
+    { type: "separator", margin: "md" },
+    {
+      type: "button",
+      action: {
+        type: "postback",
+        label: "วิเคราะห์ใหม่",
+        data: "action=analyze_again"
+      },
+      style: "primary",
+      margin: "md"
+    }
+  );
+
+  return richMessage;
+}
+
+async function handleEvent(event) {
+  try {
+    console.log('Handling event:', {
+      type: event.type,
+      replyToken: event.replyToken,
+      userId: event.source?.userId,
+      messageType: event.message?.type,
+      messageText: event.message?.text?.substring(0, 100)
+    });
+
+    // Handle postback events from rich message buttons
+    if (event.type === 'postback') {
+      return handlePostback(event);
+    }
+
+    if (event.type !== 'message' || event.message.type !== 'text') {
+      return Promise.resolve(null);
+    }
+
+    // Validate replyToken exists
+    if (!event.replyToken) {
+      console.error('No replyToken found in event');
+      return Promise.resolve(null);
+    }
+
+    const userId = event.source.userId;
+    const message = event.message.text.trim();
+
     if (message === 'เริ่มต้น' || message.includes('สวัสดี') || message.includes('hello')) {
       return handleGreeting(event);
     }
@@ -50,82 +265,207 @@ async function handleEvent(event) {
     }
 
     if (message === 'ซื้อหวย' || message === 'พบรัก' || message === 'ดวงธุรกิจ' || message === 'ย้ายงาน') {
-      return handleFortuneCategory(event, message);
+      // Check if user has cached birth data
+      const cachedBirthChart = global.userBirthChart?.[userId];
+      const cachedBirthData = global.userBirthData?.[userId];
+      
+      if (cachedBirthChart && cachedBirthData) {
+        console.log(`Using cached birth data for user ${userId}, saved at ${cachedBirthData.timestamp}`);
+        return handleFortuneCategory(event, message);
+      } else {
+        return client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'กรุณากรอกข้อมูลเกิดก่อนค่ะ'
+        });
+      }
     }
 
     return handleGeneralMessage(event);
   } catch (error) {
-    console.error('Error handling event:', error);
-    return client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: 'ขออภัยค่ะ เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่อีกครั้งค่ะ'
+    console.error('Error handling event:', {
+      error: error.message,
+      stack: error.stack,
+      event: event
     });
+    
+    // Try to send error message if replyToken exists
+    if (event.replyToken) {
+      try {
+        return await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'ขออภัยค่ะ เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่อีกครั้งค่ะ'
+        });
+      } catch (replyError) {
+        console.error('Failed to send error message:', replyError);
+      }
+    }
+    
+    return Promise.resolve(null);
   }
 }
 
 async function handleGreeting(event) {
-  const flexMessage = {
-    type: 'flex',
-    altText: 'สวัสดีค่ะ Seeker',
-    contents: {
-      type: 'bubble',
-      body: {
-        type: 'box',
-        layout: 'vertical',
-        contents: [
-          {
-            type: 'text',
-            text: 'สวัสดีค่ะ Seeker ✨',
-            weight: 'bold',
-            size: 'xl',
-            color: '#7B68EE'
-          },
-          {
-            type: 'text',
-            text: 'ฉันคือ น้องลักกี้ – หมอดูโหราศาสตร์สากล',
-            size: 'md',
-            margin: 'md'
-          },
-          {
-            type: 'text',
-            text: 'ผู้เชี่ยวชาญการคำนวณ "คะแนนโชคลาภ" และ "เลขเด็ด" จากดวงกำเนิด',
-            size: 'sm',
-            margin: 'sm',
-            wrap: true
-          },
-          {
-            type: 'separator',
-            margin: 'md'
-          },
-          {
-            type: 'text',
-            text: 'กรุณาเลือกเพศและกรอกข้อมูลเกิดของคุณ',
-            size: 'md',
-            margin: 'md',
-            weight: 'bold'
-          }
-        ]
-      },
-      footer: {
-        type: 'box',
-        layout: 'vertical',
-        contents: [
-          {
-            type: 'button',
-            action: {
-              type: 'uri',
-              label: 'กรอกข้อมูลเกิด',
-              uri: `https://liff.line.me/${config.line.liffId}`
+  const userId = event.source.userId;
+  const cachedBirthData = global.userBirthData?.[userId];
+  
+  // Check if user has cached birth data
+  if (cachedBirthData) {
+    const savedDate = new Date(cachedBirthData.timestamp).toLocaleDateString('th-TH');
+    
+    const flexMessage = {
+      type: 'flex',
+      altText: 'สวัสดีค่ะ Seeker',
+      contents: {
+        type: 'bubble',
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: 'สวัสดีค่ะ Seeker ✨',
+              weight: 'bold',
+              size: 'xl',
+              color: '#7B68EE'
             },
-            style: 'primary',
-            color: '#7B68EE'
-          }
-        ]
+            {
+              type: 'text',
+              text: 'ฉันจำข้อมูลเกิดของคุณได้แล้วค่ะ',
+              size: 'md',
+              margin: 'md'
+            },
+            {
+              type: 'text',
+              text: `บันทึกเมื่อ: ${savedDate}`,
+              size: 'sm',
+              margin: 'sm',
+              color: '#999999'
+            },
+            {
+              type: 'separator',
+              margin: 'md'
+            },
+            {
+              type: 'text',
+              text: 'เลือกหมวดโชคลาภที่ต้องการดูได้เลยค่ะ',
+              size: 'md',
+              margin: 'md',
+              weight: 'bold'
+            }
+          ]
+        },
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'sm',
+          contents: [
+            {
+              type: 'button',
+              action: {
+                type: 'message',
+                label: '🎰 ซื้อหวย',
+                text: 'ซื้อหวย'
+              },
+              style: 'primary'
+            },
+            {
+              type: 'button',
+              action: {
+                type: 'message',
+                label: '💕 พบรัก',
+                text: 'พบรัก'
+              },
+              style: 'primary'
+            },
+            {
+              type: 'button',
+              action: {
+                type: 'message',
+                label: '💼 ดวงธุรกิจ',
+                text: 'ดวงธุรกิจ'
+              },
+              style: 'primary'
+            },
+            {
+              type: 'button',
+              action: {
+                type: 'message',
+                label: '🔄 ย้ายงาน',
+                text: 'ย้ายงาน'
+              },
+              style: 'primary'
+            }
+          ]
+        }
       }
-    }
-  };
+    };
 
-  return client.replyMessage(event.replyToken, flexMessage);
+    return client.replyMessage(event.replyToken, flexMessage);
+  } else {
+    // Original greeting for new users
+    const flexMessage = {
+      type: 'flex',
+      altText: 'สวัสดีค่ะ Seeker',
+      contents: {
+        type: 'bubble',
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: 'สวัสดีค่ะ Seeker ✨',
+              weight: 'bold',
+              size: 'xl',
+              color: '#7B68EE'
+            },
+            {
+              type: 'text',
+              text: 'ฉันคือ น้องลักกี้ – หมอดูโหราศาสตร์สากล',
+              size: 'md',
+              margin: 'md'
+            },
+            {
+              type: 'text',
+              text: 'ผู้เชี่ยวชาญการคำนวณ "คะแนนโชคลาภ" และ "เลขเด็ด" จากดวงกำเนิด',
+              size: 'sm',
+              margin: 'sm',
+              wrap: true
+            },
+            {
+              type: 'separator',
+              margin: 'md'
+            },
+            {
+              type: 'text',
+              text: 'กรุณาเลือกเพศและกรอกข้อมูลเกิดของคุณ',
+              size: 'md',
+              margin: 'md',
+              weight: 'bold'
+            }
+          ]
+        },
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'button',
+              action: {
+                type: 'uri',
+                label: 'กรอกข้อมูลเกิด',
+                uri: `https://liff.line.me/${config.line.liffId}`
+              },
+              style: 'primary',
+              color: '#7B68EE'
+            }
+          ]
+        }
+      }
+    };
+
+    return client.replyMessage(event.replyToken, flexMessage);
+  }
 }
 
 async function handleBirthChart(event, message) {
@@ -217,8 +557,19 @@ async function handleBirthChart(event, message) {
       }
     };
 
+    // Cache both birth chart and original birth data
     global.userBirthChart = global.userBirthChart || {};
+    global.userBirthData = global.userBirthData || {};
+    
     global.userBirthChart[event.source.userId] = birthChart;
+    global.userBirthData[event.source.userId] = {
+      birthdate,
+      birthtime,
+      latitude,
+      longitude,
+      gender,
+      timestamp: new Date().toISOString()
+    };
 
     return client.replyMessage(event.replyToken, fortuneCategories);
   } catch (error) {
@@ -251,11 +602,47 @@ async function handleFortuneCategory(event, category) {
     }
 
     const fortuneResult = await fortuneService.getFortune(birthChart, category);
+
+    console.log("fortuneResult",fortuneResult)
     
-    return client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: fortuneResult
-    });
+    // Return plain text instead of flex message
+    try {
+      console.log('Attempting to send message:', {
+        replyToken: event.replyToken,
+        textLength: fortuneResult?.length || 0,
+        textPreview: fortuneResult?.substring(0, 100) + '...'
+      });
+      
+      // Validate and sanitize the message
+      let messageText = fortuneResult;
+      
+      // Check if message is too long (LINE limit is 5000 characters)
+      if (messageText && messageText.length > 5000) {
+        messageText = messageText.substring(0, 4900) + '...\n\n(ข้อความถูกย่อเนื่องจากความยาวเกินกำหนด)';
+      }
+      
+      // Check if message is empty or null
+      if (!messageText || messageText.trim() === '') {
+        messageText = 'ขออภัยค่ะ ไม่สามารถดูโชคลาภได้ในขณะนี้ กรุณาลองใหม่อีกครั้งค่ะ';
+      }
+      
+      return await client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: messageText
+      });
+    } catch (lineError) {
+      console.error('LINE API Error:', {
+        error: lineError.message,
+        statusCode: lineError.statusCode,
+        originalError: lineError.originalError?.response?.data || lineError.originalError
+      });
+      
+      // Try sending a simple fallback message
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'ขออภัยค่ะ มีปัญหาในการส่งข้อมูลโชคลาภ กรุณาลองใหม่อีกครั้งค่ะ'
+      });
+    }
   } catch (error) {
     console.error('Error getting fortune:', error);
     return client.replyMessage(event.replyToken, {
@@ -265,11 +652,106 @@ async function handleFortuneCategory(event, category) {
   }
 }
 
-async function handleGeneralMessage(event) {
+async function handlePostback(event) {
+  const data = event.postback.data;
+  
+  if (data === 'action=analyze_again') {
+    // Show fortune categories again
+    const fortuneCategories = {
+      type: 'flex',
+      altText: 'เลือกหมวดโชคลาภ',
+      contents: {
+        type: 'bubble',
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: 'เลือกหมวดโชคลาภที่ต้องการวิเคราะห์ใหม่ค่ะ 🌟',
+              weight: 'bold',
+              size: 'lg'
+            }
+          ]
+        },
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'sm',
+          contents: [
+            {
+              type: 'button',
+              action: {
+                type: 'message',
+                label: '🎰 ซื้อหวย',
+                text: 'ซื้อหวย'
+              },
+              style: 'primary'
+            },
+            {
+              type: 'button',
+              action: {
+                type: 'message',
+                label: '💕 พบรัก',
+                text: 'พบรัก'
+              },
+              style: 'primary'
+            },
+            {
+              type: 'button',
+              action: {
+                type: 'message',
+                label: '💼 ดวงธุรกิจ',
+                text: 'ดวงธุรกิจ'
+              },
+              style: 'primary'
+            },
+            {
+              type: 'button',
+              action: {
+                type: 'message',
+                label: '🔄 ย้ายงาน',
+                text: 'ย้ายงาน'
+              },
+              style: 'primary'
+            }
+          ]
+        }
+      }
+    };
+
+    return client.replyMessage(event.replyToken, fortuneCategories);
+  }
+  
+  if (data === 'action=view_history') {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '📊 ฟีเจอร์ประวัติการวิเคราะห์จะเปิดให้บริการเร็วๆ นี้ค่ะ กรุณารอติดตามนะคะ 🙏'
+    });
+  }
+
+  // Default response for unknown postback
   return client.replyMessage(event.replyToken, {
     type: 'text',
-    text: 'กรุณาเลือกหมวดโชคลาภที่ต้องการดู หรือกรอกข้อมูลเกิดใหม่ค่ะ'
+    text: 'ขออภัยค่ะ ไม่เข้าใจคำสั่งที่เลือก กรุณาลองใหม่อีกครั้งค่ะ'
   });
+}
+
+async function handleGeneralMessage(event) {
+  try {
+    console.log('Sending general message to user:', event.source.userId);
+    return await client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'กรุณาเลือกหมวดโชคลาภที่ต้องการดู หรือกรอกข้อมูลเกิดใหม่ค่ะ'
+    });
+  } catch (error) {
+    console.error('Error sending general message:', {
+      error: error.message,
+      statusCode: error.statusCode,
+      originalError: error.originalError?.response?.data
+    });
+    throw error;
+  }
 }
 
 const webhookHandler = (req, res) => {
@@ -286,9 +768,16 @@ const webhookHandler = (req, res) => {
 
   Promise
     .all(req.body.events.map(handleEvent))
-    .then((result) => res.json(result))
+    .then((result) => {
+      console.log('Webhook handled successfully:', result);
+      res.json(result);
+    })
     .catch((err) => {
-      console.error('Error handling webhook events:', err);
+      console.error('Error handling webhook events:', {
+        error: err.message,
+        stack: err.stack,
+        events: req.body.events
+      });
       res.status(500).json({ error: 'Internal server error' });
     });
 };
@@ -296,3 +785,4 @@ const webhookHandler = (req, res) => {
 module.exports = webhookHandler;
 module.exports.__handleBirthChart = handleBirthChart;
 module.exports.__handleEvent = handleEvent;
+module.exports.__handlePostback = handlePostback;

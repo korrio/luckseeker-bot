@@ -459,11 +459,14 @@ describe('handleFortuneCategory', () => {
     // Verify fortune service was called
     expect(fortuneService.getFortune).toHaveBeenCalledWith(mockBirthChart, 'ซื้อหวย');
 
-    // Verify reply message was sent
-    expect(mockReplyMessage).toHaveBeenCalledWith('test-reply-token', {
-      type: 'text',
-      text: mockFortuneResult
-    });
+    // Verify reply message was sent with rich message format
+    expect(mockReplyMessage).toHaveBeenCalledWith('test-reply-token', expect.objectContaining({
+      type: 'flex',
+      altText: expect.stringContaining('ผลการวิเคราะห์โชคลาภ'),
+      contents: expect.objectContaining({
+        type: 'bubble',
+      })
+    }));
   });
 
   test('should handle loading animation failure gracefully', async () => {
@@ -495,11 +498,14 @@ describe('handleFortuneCategory', () => {
     // Verify fortune service was still called despite loading animation failure
     expect(fortuneService.getFortune).toHaveBeenCalledWith(mockBirthChart, 'พบรัก');
 
-    // Verify reply message was sent
-    expect(mockReplyMessage).toHaveBeenCalledWith('test-reply-token', {
-      type: 'text',
-      text: mockFortuneResult
-    });
+    // Verify reply message was sent with rich message format
+    expect(mockReplyMessage).toHaveBeenCalledWith('test-reply-token', expect.objectContaining({
+      type: 'flex',
+      altText: expect.stringContaining('ผลการวิเคราะห์โชคลาภ'),
+      contents: expect.objectContaining({
+        type: 'bubble',
+      })
+    }));
   });
 
   test('should handle missing birth chart', async () => {
@@ -571,5 +577,168 @@ describe('handleFortuneCategory', () => {
       type: 'text',
       text: 'ขออภัยค่ะ ไม่สามารถดูโชคลาภได้ในขณะนี้ กรุณาลองใหม่อีกครั้งค่ะ'
     });
+  });
+});
+
+describe('Fortune Rich Message Parsing', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    global.userBirthChart = {};
+  });
+
+  afterEach(() => {
+    delete global.userBirthChart;
+  });
+
+  test('should parse high lucky score fortune result correctly', async () => {
+    const mockFortuneText = `
+────────────────────
+**ช่วงเวลา** : 29/6/2568 19:50:09
+**Lucky-Score** : 85 / 100  ✅ เหนือเกณฑ์  
+**ดาวจรเด่น** : Jupiter Trine Sun (2.5°) | Venus Sextile Moon (1.8°)  
+**เลขเด็ด** :  
+- 23  (จากองศาดาวพฤหัสบดี)  
+- 857  (จากการรวมองศาดาวจร)  
+**คำแนะนำ** : ช่วงนี้มีโชคลาภดี เหมาะสำหรับการเสี่ยงโชค ควรใช้โอกาสนี้ให้เป็นประโยชน์
+────────────────────`;
+
+    const userId = 'test-user-rich';
+    const mockBirthChart = { planets: {}, houses: {}, aspects: [] };
+
+    global.userBirthChart[userId] = mockBirthChart;
+    fortuneService.getFortune.mockResolvedValue(mockFortuneText);
+    mockAxios.mockResolvedValue({ status: 200 });
+
+    const mockEvent = {
+      type: 'message',
+      message: { type: 'text', text: 'ซื้อหวย' },
+      source: { userId },
+      replyToken: 'test-reply-token'
+    };
+
+    await lineController.__handleEvent(mockEvent);
+
+    // Verify rich message contains parsed data
+    const callArgs = mockReplyMessage.mock.calls[0];
+    const richMessage = callArgs[1];
+
+    expect(richMessage.type).toBe('flex');
+    expect(richMessage.altText).toContain('Lucky Score: 85/100');
+    expect(richMessage.contents.type).toBe('bubble');
+  });
+
+  test('should handle low lucky score without numbers correctly', async () => {
+    const mockFortuneText = `
+────────────────────
+**ช่วงเวลา** : 29/6/2568 20:15:30
+**Lucky-Score** : 45 / 100  ❌ ต่ำกว่าเกณฑ์  
+**ดาวจรเด่น** : ไม่มีดาวจรที่ให้พลังบวกเพียงพอ
+**เลขเด็ด** : ไม่แนะนำในช่วงนี้
+**คำแนะนำ** : ช่วงนี้ดวงเสี่ยงโชคยังต่ำ ควรรอช่วงที่ดีกว่า
+────────────────────`;
+
+    const userId = 'test-user-low-score';
+    const mockBirthChart = { planets: {}, houses: {}, aspects: [] };
+
+    global.userBirthChart[userId] = mockBirthChart;
+    fortuneService.getFortune.mockResolvedValue(mockFortuneText);
+    mockAxios.mockResolvedValue({ status: 200 });
+
+    const mockEvent = {
+      type: 'message',
+      message: { type: 'text', text: 'พบรัก' },
+      source: { userId },
+      replyToken: 'test-reply-token'
+    };
+
+    await lineController.__handleEvent(mockEvent);
+
+    const callArgs = mockReplyMessage.mock.calls[0];
+    const richMessage = callArgs[1];
+
+    expect(richMessage.altText).toContain('Lucky Score: 45/100');
+    expect(richMessage.contents.type).toBe('bubble');
+  });
+});
+
+describe('Postback Handling', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('should handle analyze_again postback', async () => {
+    const event = {
+      type: 'postback',
+      postback: { data: 'action=analyze_again' },
+      source: { userId: 'test-user-postback' },
+      replyToken: 'test-reply-token-postback'
+    };
+
+    await lineController.__handlePostback(event);
+
+    expect(mockReplyMessage).toHaveBeenCalledWith('test-reply-token-postback', expect.objectContaining({
+      type: 'flex',
+      altText: 'เลือกหมวดโชคลาภ',
+      contents: expect.objectContaining({
+        type: 'bubble',
+        footer: expect.objectContaining({
+          contents: expect.arrayContaining([
+            expect.objectContaining({
+              action: expect.objectContaining({
+                text: 'ซื้อหวย'
+              })
+            })
+          ])
+        })
+      })
+    }));
+  });
+
+  test('should handle view_history postback', async () => {
+    const event = {
+      type: 'postback',
+      postback: { data: 'action=view_history' },
+      source: { userId: 'test-user-history' },
+      replyToken: 'test-reply-token-history'
+    };
+
+    await lineController.__handlePostback(event);
+
+    expect(mockReplyMessage).toHaveBeenCalledWith('test-reply-token-history', {
+      type: 'text',
+      text: '📊 ฟีเจอร์ประวัติการวิเคราะห์จะเปิดให้บริการเร็วๆ นี้ค่ะ กรุณารอติดตามนะคะ 🙏'
+    });
+  });
+
+  test('should handle unknown postback', async () => {
+    const event = {
+      type: 'postback',
+      postback: { data: 'action=unknown' },
+      source: { userId: 'test-user-unknown' },
+      replyToken: 'test-reply-token-unknown'
+    };
+
+    await lineController.__handlePostback(event);
+
+    expect(mockReplyMessage).toHaveBeenCalledWith('test-reply-token-unknown', {
+      type: 'text',
+      text: 'ขออภัยค่ะ ไม่เข้าใจคำสั่งที่เลือก กรุณาลองใหม่อีกครั้งค่ะ'
+    });
+  });
+
+  test('should route postback events through handleEvent', async () => {
+    const event = {
+      type: 'postback',
+      postback: { data: 'action=analyze_again' },
+      source: { userId: 'test-user-route' },
+      replyToken: 'test-reply-token-route'
+    };
+
+    await lineController.__handleEvent(event);
+
+    expect(mockReplyMessage).toHaveBeenCalledWith('test-reply-token-route', expect.objectContaining({
+      type: 'flex',
+      altText: 'เลือกหมวดโชคลาภ'
+    }));
   });
 });

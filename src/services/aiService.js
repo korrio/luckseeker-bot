@@ -74,6 +74,8 @@ ${JSON.stringify(birthChart, null, 2)}
         temperature: 0.7
       });
 
+      console.log("completion.choices[0].message.content",completion.choices[0].message.content)
+
       return completion.choices[0].message.content;
     } catch (error) {
       console.error('OpenAI API error:', error);
@@ -104,7 +106,7 @@ ${JSON.stringify(birthChart, null, 2)}
     }
   }
 
-  async getFortune(birthChart, category, preferredProvider = 'openai') {
+  async getFortune(birthChart, category, preferredProvider = 'claude') {
     try {
       if (preferredProvider === 'claude' && config.ai.anthropicApiKey) {
         return await this.getFortuneFromClaude(birthChart, category);
@@ -124,7 +126,7 @@ ${JSON.stringify(birthChart, null, 2)}
       'ซื้อหวย': `
 ────────────────────
 **ช่วงเวลา** : ${new Date().toLocaleDateString('th-TH')} ${new Date().toLocaleTimeString('th-TH')}
-**Lucky-Score** : 45 / 100  ❌ ต่ำกว่าเกณฑ์  
+**Lucky-Score** : xx / 100  ❌ ต่ำกว่าเกณฑ์  
 **ดาวจรเด่น** : ไม่มีดาวจรให้พลังบวกเพียงพอ
 **เลขเด็ด** : ไม่แนะนำในช่วงนี้
 **คําแนะนํา** : ช่วงนี้ดวงเสี่ยงโชคยังต่ำ ไม่แนะนำการซื้อหวย ควรรอช่วงที่ดาวโชคลาภ (Jupiter) อยู่ในมุมดีกับดวงกำเนิด
@@ -133,7 +135,7 @@ ${JSON.stringify(birthChart, null, 2)}
       'พบรัก': `
 ────────────────────
 **ช่วงเวลา** : ${new Date().toLocaleDateString('th-TH')} ${new Date().toLocaleTimeString('th-TH')}
-**Lucky-Score** : 55 / 100  ❌ ต่ำกว่าเกณฑ์  
+**Lucky-Score** : xx / 100  ❌ ต่ำกว่าเกณฑ์  
 **ดาวจรเด่น** : ดาวศุกร์ยังไม่อยู่ในตำแหน่งที่เหมาะสม
 **เลขเด็ด** : ไม่แนะนำในช่วงนี้
 **คําแนะนํา** : ช่วงนี้เรื่องความรักยังไม่เข้าท่า ควรพัฒนาตัวเองและรอช่วงที่ดาวศุกร์ (Venus) ส่องแสงดี
@@ -142,7 +144,7 @@ ${JSON.stringify(birthChart, null, 2)}
       'ดวงธุรกิจ': `
 ────────────────────
 **ช่วงเวลา** : ${new Date().toLocaleDateString('th-TH')} ${new Date().toLocaleTimeString('th-TH')}
-**Lucky-Score** : 60 / 100  ❌ ต่ำกว่าเกณฑ์  
+**Lucky-Score** : xx / 100  ❌ ต่ำกว่าเกณฑ์  
 **ดาวจรเด่น** : ดาวอังคารและดาวพุธยังไม่เข้าขาดี
 **เลขเด็ด** : ไม่แนะนำในช่วงนี้
 **คําแนะนํา** : ธุรกิจควรรอช่วงที่เหมาะสม มุ่งเน้นการวางแผนและเตรียมตัว รอดาวโชคลาภเข้ามาช่วย
@@ -151,7 +153,7 @@ ${JSON.stringify(birthChart, null, 2)}
       'ย้ายงาน': `
 ────────────────────
 **ช่วงเวลา** : ${new Date().toLocaleDateString('th-TH')} ${new Date().toLocaleTimeString('th-TH')}
-**Lucky-Score** : 50 / 100  ❌ ต่ำกว่าเกณฑ์  
+**Lucky-Score** : xx / 100  ❌ ต่ำกว่าเกณฑ์  
 **ดาวจรเด่น** : ดาวเสาร์ยังส่งพลังติดขัด
 **เลขเด็ด** : ไม่แนะนำในช่วงนี้
 **คําแนะนํา** : การย้ายงานควรรอช่วงที่เหมาะสม ปัจจุบันควรปรับปรุงทักษะและรอโอกาสที่ดีกว่า

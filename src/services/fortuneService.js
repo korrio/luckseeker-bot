@@ -18,6 +18,8 @@ class FortuneService {
       };
 
       const fortuneResult = await aiService.getFortune(enhancedBirthChart, category);
+
+      console.log("fortuneResult",fortuneResult)
       
       return fortuneResult;
     } catch (error) {

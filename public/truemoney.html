@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrueMoney QR Code Generator</title>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/promptparse/1.4.0/promptparse.min.js"></script> -->
+	<script src="https://cdn.jsdelivr.net/npm/promptparse"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff8300 0%, #ff8300 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #ff8300;
+        }
+
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #ff8300 0%, #ff8300 100%);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .generate-btn:active {
+            transform: translateY(0);
+        }
+
+        .qr-result {
+            margin-top: 30px;
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            display: none;
+        }
+
+        .qr-result.show {
+            display: block;
+        }
+
+        .qr-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .qr-result img {
+            max-width: 100%;
+            height: auto;
+            border: 3px solid #fff;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .qr-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            background: white;
+            padding: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .qr-overlay img {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 4px;
+            box-shadow: none;
+        }
+
+        .qr-info {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            text-align: left;
+        }
+
+        .qr-info h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .qr-info p {
+            color: #666;
+            margin: 5px 0;
+        }
+
+        .error {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 25px;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 TrueMoney QR Generator</h1>
+            <p>Generate QR codes for easy money transfers</p>
+        </div>
+
+        <form id="qrForm">
+            <div class="form-group">
+                <label for="mobileNo">Mobile Number</label>
+                <input 
+                    type="text" 
+                    id="mobileNo" 
+                    placeholder="e.g., 0816607218" 
+                    maxlength="10"
+                    required
+                >
+                <div class="error" id="mobileError">Please enter a valid 10-digit mobile number starting with 0</div>
+            </div>
+
+            <div class="form-group">
+                <label for="amount">Amount (THB)</label>
+                <input 
+                    type="number" 
+                    id="amount" 
+                    placeholder="e.g., 100.00"
+                    min="0.01"
+                    step="0.01"
+                    required
+                >
+                <div class="error" id="amountError">Please enter a valid amount greater than 0</div>
+            </div>
+
+            <div class="form-group">
+                <label for="message">Message (Optional)</label>
+                <input 
+                    type="text" 
+                    id="message" 
+                    placeholder="e.g., Lunch payment"
+                    maxlength="100"
+                >
+            </div>
+
+            <button type="submit" class="generate-btn">
+                Generate QR Code
+            </button>
+        </form>
+
+        <div class="qr-result" id="qrResult">
+            <div class="qr-container">
+                <img id="qrImage" src="" alt="QR Code">
+                <div class="qr-overlay">
+                    <img src="https://play-lh.googleusercontent.com/s5fubtbn7WyDR8-T3ZA0mByXddpFIUnb9SLmEv0Y2d5njAbYq53JU3U0I6-0hwcFUA" alt="Logo" width="50">
+                </div>
+            </div>
+            <div class="qr-info">
+                <h3>Transfer Details</h3>
+                <p><strong>Mobile:</strong> <span id="displayMobile"></span></p>
+                <p><strong>Amount:</strong> ฿<span id="displayAmount"></span></p>
+                <p><strong>Message:</strong> <span id="displayMessage"></span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('qrForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Get form values
+            const mobileNo = document.getElementById('mobileNo').value.trim();
+            const amount = parseFloat(document.getElementById('amount').value);
+            const message = document.getElementById('message').value.trim() || 'Payment';
+            
+            // Reset errors
+            document.querySelectorAll('.error').forEach(error => error.classList.remove('show'));
+            
+            // Validation
+            let isValid = true;
+            
+            // Validate mobile number (Thai format)
+            if (!/^0[0-9]{9}$/.test(mobileNo)) {
+                document.getElementById('mobileError').classList.add('show');
+                isValid = false;
+            }
+            
+            // Validate amount
+            if (isNaN(amount) || amount <= 0) {
+                document.getElementById('amountError').classList.add('show');
+                isValid = false;
+            }
+            
+            if (!isValid) return;
+            
+            try {
+                // Check if promptparse is available
+                if (typeof promptparse === 'undefined') {
+                    throw new Error('Promptparse library not loaded');
+                }
+                
+                // Generate QR code payload using promptparse
+                const payload = promptparse.generate.trueMoney({
+                    mobileNo: mobileNo,
+                    amount: amount,
+                    message: message
+                });
+                
+                // Generate QR code image URL
+                const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(payload)}`;
+                
+                // Display results
+                document.getElementById('qrImage').src = qrImageUrl;
+                document.getElementById('displayMobile').textContent = mobileNo;
+                document.getElementById('displayAmount').textContent = amount.toFixed(2);
+                document.getElementById('displayMessage').textContent = message;
+                
+                document.getElementById('qrResult').classList.add('show');
+                
+                // Smooth scroll to result
+                document.getElementById('qrResult').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+                
+            } catch (error) {
+                alert('Error generating QR code: ' + error.message);
+                console.error('QR Generation Error:', error);
+            }
+        });
+        
+        // Auto-format mobile number input
+        document.getElementById('mobileNo').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+            if (value.length > 10) {
+                value = value.slice(0, 10);
+            }
+            e.target.value = value;
+        });
+        
+        // Auto-format amount input
+        document.getElementById('amount').addEventListener('input', function(e) {
+            let value = parseFloat(e.target.value);
+            if (!isNaN(value) && value > 0) {
+                document.getElementById('amountError').classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>
