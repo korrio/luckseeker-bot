@@ -1,0 +1,397 @@
+{
+  "name": "LuckSeeker LINE Bot Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/webhook/line",
+        "options": {}
+      },
+      "id": "webhook-line",
+      "name": "LINE Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "message-type-text",
+              "leftValue": "={{ $json.events[0].type }}",
+              "rightValue": "message",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "message-text-exists",
+              "leftValue": "={{ $json.events[0].message?.type }}",
+              "rightValue": "text",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-text-message",
+      "name": "IF Text Message",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "postback-type",
+              "leftValue": "={{ $json.events[0].type }}",
+              "rightValue": "postback",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-postback",
+      "name": "IF Postback",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        460,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract message details\nconst event = $input.first().json.events[0];\nconst messageText = event.message?.text || '';\nconst userId = event.source.userId;\nconst replyToken = event.replyToken;\n\n// Determine message type\nlet messageType = 'unknown';\nlet category = null;\nlet data = null;\n\nif (messageText.includes('สวัสดี') || messageText.includes('hello') || messageText.includes('เริ่ม')) {\n  messageType = 'greeting';\n} else if (messageText.startsWith('birth:')) {\n  messageType = 'birth_chart';\n  try {\n    data = JSON.parse(messageText.replace('birth:', ''));\n  } catch (e) {\n    messageType = 'invalid_format';\n  }\n} else if (messageText.startsWith('lottery:')) {\n  messageType = 'additional_data';\n  category = 'ซื้อหวย';\n  try {\n    data = JSON.parse(messageText.replace('lottery:', ''));\n  } catch (e) {\n    messageType = 'invalid_format';\n  }\n} else if (messageText.startsWith('business:')) {\n  messageType = 'additional_data';\n  category = 'ดวงธุรกิจ';\n  try {\n    data = JSON.parse(messageText.replace('business:', ''));\n  } catch (e) {\n    messageType = 'invalid_format';\n  }\n} else if (messageText.startsWith('partner:')) {\n  messageType = 'additional_data';\n  category = 'พบรัก';\n  try {\n    data = JSON.parse(messageText.replace('partner:', ''));\n  } catch (e) {\n    messageType = 'invalid_format';\n  }\n} else if (messageText.startsWith('relocation:')) {\n  messageType = 'additional_data';\n  category = 'ย้ายงาน';\n  try {\n    data = JSON.parse(messageText.replace('relocation:', ''));\n  } catch (e) {\n    messageType = 'invalid_format';\n  }\n}\n\nreturn {\n  messageType,\n  category,\n  data,\n  userId,\n  replyToken,\n  originalEvent: event\n};"
+      },
+      "id": "parse-text-message",
+      "name": "Parse Text Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract postback details\nconst event = $input.first().json.events[0];\nconst postbackData = event.postback?.data || '';\nconst userId = event.source.userId;\nconst replyToken = event.replyToken;\n\n// Parse postback data\nconst params = new URLSearchParams(postbackData);\nconst action = params.get('action');\nconst category = params.get('category');\n\nlet postbackType = 'unknown';\n\nif (action === 'select_category') {\n  postbackType = 'category_selection';\n} else if (action?.startsWith('analyze_')) {\n  postbackType = 'fortune_analysis';\n} else if (action === 'delete_all_data') {\n  postbackType = 'delete_data_request';\n} else if (action === 'confirm_delete_all') {\n  postbackType = 'delete_data_confirm';\n} else if (action === 'cancel_delete') {\n  postbackType = 'delete_data_cancel';\n} else if (action === 'analyze_again') {\n  postbackType = 'analyze_again';\n}\n\nreturn {\n  postbackType,\n  action,\n  category,\n  userId,\n  replyToken,\n  originalEvent: event\n};"
+      },
+      "id": "parse-postback",
+      "name": "Parse Postback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-greeting",
+              "leftValue": "={{ $json.messageType }}",
+              "rightValue": "greeting",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-greeting",
+      "name": "Route: Greeting",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        900,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-birth-chart",
+              "leftValue": "={{ $json.messageType }}",
+              "rightValue": "birth_chart",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-birth-chart",
+      "name": "Route: Birth Chart",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-additional-data",
+              "leftValue": "={{ $json.messageType }}",
+              "rightValue": "additional_data",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-additional-data",
+      "name": "Route: Additional Data",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-category-selection",
+              "leftValue": "={{ $json.postbackType }}",
+              "rightValue": "category_selection",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-category-selection",
+      "name": "Route: Category Selection",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        900,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-fortune-analysis",
+              "leftValue": "={{ $json.postbackType }}",
+              "rightValue": "fortune_analysis",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-fortune-analysis",
+      "name": "Route: Fortune Analysis",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        900,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-delete-data",
+              "leftValue": "={{ $json.postbackType }}",
+              "rightValue": "delete_data_request",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-delete-data",
+      "name": "Route: Delete Data",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        900,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://your-database-api.com/birth-data/{{ $json.userId }}",
+        "options": {}
+      },
+      "id": "get-birth-data",
+      "name": "Get Birth Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if user has cached birth data\nconst userId = $('route-greeting').first().json.userId;\nconst replyToken = $('route-greeting').first().json.replyToken;\nconst birthData = $input.first().json; // Response from Get Birth Data\n\nlet flexMessage;\n\nif (birthData && birthData.userId) {\n  // User has cached data - show categories\n  const savedDate = new Date(birthData.timestamp).toLocaleDateString('th-TH');\n  \n  flexMessage = {\n    type: 'flex',\n    altText: 'สวัสดีค่ะ Seeker',\n    contents: {\n      type: 'bubble',\n      body: {\n        type: 'box',\n        layout: 'vertical',\n        contents: [\n          {\n            type: 'text',\n            text: 'สวัสดีค่ะ Seeker ✨',\n            weight: 'bold',\n            size: 'xl',\n            color: '#7B68EE'\n          },\n          {\n            type: 'text',\n            text: 'ฉันจำข้อมูลเกิดของคุณได้แล้วค่ะ',\n            size: 'md',\n            margin: 'md'\n          },\n          {\n            type: 'text',\n            text: `บันทึกเมื่อ: ${savedDate}`,\n            size: 'sm',\n            margin: 'sm',\n            color: '#999999'\n          },\n          {\n            type: 'separator',\n            margin: 'md'\n          },\n          {\n            type: 'text',\n            text: 'เลือกหมวดโชคลาภที่ต้องการดูได้เลยค่ะ',\n            size: 'md',\n            margin: 'md',\n            weight: 'bold'\n          }\n        ]\n      },\n      footer: {\n        type: 'box',\n        layout: 'vertical',\n        spacing: 'sm',\n        contents: [\n          {\n            type: 'button',\n            action: {\n              type: 'postback',\n              label: '🎰 ซื้อหวย',\n              data: 'action=select_category&category=ซื้อหวย'\n            },\n            style: 'primary'\n          },\n          {\n            type: 'button',\n            action: {\n              type: 'postback',\n              label: '💕 พบรัก',\n              data: 'action=select_category&category=พบรัก'\n            },\n            style: 'primary'\n          },\n          {\n            type: 'button',\n            action: {\n              type: 'postback',\n              label: '💼 ดวงธุรกิจ',\n              data: 'action=select_category&category=ดวงธุรกิจ'\n            },\n            style: 'primary'\n          },\n          {\n            type: 'button',\n            action: {\n              type: 'postback',\n              label: '🔄 ย้ายงาน',\n              data: 'action=select_category&category=ย้ายงาน'\n            },\n            style: 'primary'\n          },\n          {\n            type: 'separator',\n            margin: 'md'\n          },\n          {\n            type: 'button',\n            action: {\n              type: 'postback',\n              label: '🗑️ ลบข้อมูลของฉันทั้งหมด',\n              data: 'action=delete_all_data'\n            },\n            style: 'secondary',\n            color: '#FF6B6B'\n          }\n        ]\n      }\n    }\n  };\n} else {\n  // New user - show birth data input\n  flexMessage = {\n    type: 'flex',\n    altText: 'สวัสดีค่ะ Seeker',\n    contents: {\n      type: 'bubble',\n      body: {\n        type: 'box',\n        layout: 'vertical',\n        contents: [\n          {\n            type: 'text',\n            text: 'สวัสดีค่ะ Seeker ✨',\n            weight: 'bold',\n            size: 'xl',\n            color: '#7B68EE'\n          },\n          {\n            type: 'text',\n            text: 'ฉันคือ น้องลักกี้ – หมอดูโหราศาสตร์สากล',\n            size: 'md',\n            margin: 'md'\n          },\n          {\n            type: 'text',\n            text: 'ผู้เชี่ยวชาญการคำนวณ \"คะแนนโชคลาภ\" และ \"เลขเด็ด\" จากดวงกำเนิด',\n            size: 'sm',\n            margin: 'sm',\n            wrap: true\n          },\n          {\n            type: 'separator',\n            margin: 'md'\n          },\n          {\n            type: 'text',\n            text: 'กรุณาเลือกเพศและกรอกข้อมูลเกิดของคุณ',\n            size: 'md',\n            margin: 'md',\n            weight: 'bold'\n          }\n        ]\n      },\n      footer: {\n        type: 'box',\n        layout: 'vertical',\n        contents: [\n          {\n            type: 'button',\n            action: {\n              type: 'uri',\n              label: 'กรอกข้อมูลเกิด',\n              uri: 'https://miniapp.line.me/YOUR_LIFF_ID'\n            },\n            style: 'primary',\n            color: '#7B68EE'\n          }\n        ]\n      }\n    }\n  };\n}\n\nreturn {\n  replyToken,\n  message: flexMessage\n};"
+      },
+      "id": "handle-greeting",
+      "name": "Handle Greeting",\n      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate birth chart from Swiss Ephemeris\nconst data = $input.first().json.data;\nconst userId = $input.first().json.userId;\nconst replyToken = $input.first().json.replyToken;\n\n// Validate required fields\nif (!data.birthdate || !data.birthtime || data.latitude === undefined || data.longitude === undefined) {\n  return {\n    replyToken,\n    message: {\n      type: 'text',\n      text: 'ขออภัยค่ะ ข้อมูลเกิดไม่ครบถ้วน กรุณากรอกข้อมูลใหม่อีกครั้งค่ะ'\n    }\n  };\n}\n\n// Mock birth chart generation (replace with actual Swiss Ephemeris calculation)\nconst birthChart = {\n  planets: {\n    Sun: { longitude: 85.5, sign: 'Gemini', degree: 25 },\n    Moon: { longitude: 142.3, sign: 'Leo', degree: 22 },\n    Mercury: { longitude: 78.9, sign: 'Gemini', degree: 18 }\n    // ... more planets\n  },\n  houses: {\n    House1: { longitude: 15, sign: 'Aries' },\n    House2: { longitude: 45, sign: 'Taurus' }\n    // ... more houses\n  },\n  aspects: [\n    { planet1: 'Sun', planet2: 'Moon', aspect: 'trine', orb: 2.5 }\n    // ... more aspects\n  ],\n  timestamp: new Date().toISOString()\n};\n\n// Fortune categories flex message\nconst fortuneCategories = {\n  type: 'flex',\n  altText: 'เลือกหมวดโชคลาภ',\n  contents: {\n    type: 'bubble',\n    body: {\n      type: 'box',\n      layout: 'vertical',\n      contents: [\n        {\n          type: 'text',\n          text: 'ได้ Birth Chart แล้วค่ะ! 🌟',\n          weight: 'bold',\n          size: 'lg'\n        },\n        {\n          type: 'text',\n          text: 'เลือกหมวดโชคลาภที่ต้องการดูค่ะ',\n          margin: 'md'\n        }\n      ]\n    },\n    footer: {\n      type: 'box',\n      layout: 'vertical',\n      spacing: 'sm',\n      contents: [\n        {\n          type: 'button',\n          action: {\n            type: 'postback',\n            label: '🎰 ซื้อหวย',\n            data: 'action=select_category&category=ซื้อหวย'\n          },\n          style: 'primary'\n        },\n        {\n          type: 'button',\n          action: {\n            type: 'postback',\n            label: '💕 พบรัก',\n            data: 'action=select_category&category=พบรัก'\n          },\n          style: 'primary'\n        },\n        {\n          type: 'button',\n          action: {\n            type: 'postback',\n            label: '💼 ดวงธุรกิจ',\n            data: 'action=select_category&category=ดวงธุรกิจ'\n          },\n          style: 'primary'\n        },\n        {\n          type: 'button',\n          action: {\n            type: 'postback',\n            label: '🔄 ย้ายงาน',\n            data: 'action=select_category&category=ย้ายงาน'\n          },\n          style: 'primary'\n        }\n      ]\n    }\n  }\n};\n\nreturn {\n  replyToken,\n  message: fortuneCategories,\n  userId,\n  birthChart,\n  birthData: data\n};"
+      },
+      "id": "handle-birth-chart",
+      "name": "Handle Birth Chart",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle additional data submission\nconst data = $input.first().json.data;\nconst category = $input.first().json.category;\nconst userId = $input.first().json.userId;\nconst replyToken = $input.first().json.replyToken;\n\n// Category mapping for action buttons\nconst categoryMap = {\n  'ซื้อหวย': { emoji: '🎰', action: 'analyze_lottery' },\n  'พบรัก': { emoji: '💕', action: 'analyze_love' },\n  'ดวงธุรกิจ': { emoji: '💼', action: 'analyze_business' },\n  'ย้ายงาน': { emoji: '🔄', action: 'analyze_relocation'\n};\n\nconst categoryInfo = categoryMap[category];\nconst responseText = `ได้รับข้อมูล${category}แล้วค่ะ กำลังวิเคราะห์ดวงโชคลาภ...`;\n\nconst flexMessage = {\n  type: 'flex',\n  altText: responseText,\n  contents: {\n    type: 'bubble',\n    body: {\n      type: 'box',\n      layout: 'vertical',\n      contents: [\n        {\n          type: 'text',\n          text: responseText,\n          weight: 'bold',\n          size: 'md',\n          color: '#7B68EE',\n          wrap: true\n        },\n        {\n          type: 'separator',\n          margin: 'md'\n        },\n        {\n          type: 'text',\n          text: 'คลิกปุ่มด้านล่างเพื่อเริ่มการวิเคราะห์',\n          size: 'sm',\n          margin: 'md',\n          color: '#666666'\n        }\n      ]\n    },\n    footer: {\n      type: 'box',\n      layout: 'vertical',\n      contents: [\n        {\n          type: 'button',\n          action: {\n            type: 'postback',\n            label: `${categoryInfo.emoji} เริ่มวิเคราะห์${category}`,\n            data: `action=${categoryInfo.action}&category=${encodeURIComponent(category)}`\n          },\n          style: 'primary',\n          color: '#7B68EE'\n        }\n      ]\n    }\n  }\n};\n\nreturn {\n  replyToken,\n  message: flexMessage,\n  userId,\n  category,\n  additionalData: data\n};"
+      },
+      "id": "handle-additional-data",
+      "name": "Handle Additional Data",
+      "type": "n8n-nodes-base.code",\n      "typeVersion": 2,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle category selection - redirect to input page\nconst category = $input.first().json.category;\nconst replyToken = $input.first().json.replyToken;\n\nconst categoryMap = {\n  'ซื้อหวย': { emoji: '🎰', text: 'ซื้อหวย' },\n  'พบรัก': { emoji: '💕', text: 'พบรัก' },\n  'ดวงธุรกิจ': { emoji: '💼', text: 'ดวงธุรกิจ' },\n  'ย้ายงาน': { emoji: '🔄', text: 'ย้ายงาน' }\n};\n\nconst categoryInfo = categoryMap[category] || { emoji: '✨', text: category };\n\nconst flexMessage = {\n  type: 'flex',\n  altText: `กรอกข้อมูลเพิ่มเติมสำหรับ${categoryInfo.text}`,\n  contents: {\n    type: 'bubble',\n    body: {\n      type: 'box',\n      layout: 'vertical',\n      contents: [\n        {\n          type: 'text',\n          text: `${categoryInfo.emoji} ${categoryInfo.text}`,\n          weight: 'bold',\n          size: 'xl',\n          color: '#7B68EE'\n        },\n        {\n          type: 'text',\n          text: 'กรุณากรอกข้อมูลเพิ่มเติมเพื่อการดูดวงที่แม่นยำยิ่งขึ้น',\n          size: 'md',\n          margin: 'md',\n          wrap: true\n        },\n        {\n          type: 'separator',\n          margin: 'md'\n        },\n        {\n          type: 'text',\n          text: 'คลิกปุ่มด้านล่างเพื่อเปิดหน้ากรอกข้อมูล',\n          size: 'sm',\n          margin: 'md',\n          color: '#666666'\n        }\n      ]\n    },\n    footer: {\n      type: 'box',\n      layout: 'vertical',\n      contents: [\n        {\n          type: 'button',\n          action: {\n            type: 'uri',\n            label: 'กรอกข้อมูลเพิ่มเติม',\n            uri: `https://miniapp.line.me/YOUR_LIFF_ID?category=${encodeURIComponent(category)}`\n          },\n          style: 'primary',\n          color: '#7B68EE'\n        }\n      ]\n    }\n  }\n};\n\nreturn {\n  replyToken,\n  message: flexMessage\n};"
+      },
+      "id": "handle-category-selection",
+      "name": "Handle Category Selection",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://your-database-api.com/fortune-cache/{{ $json.userId }}/{{ $json.category }}",
+        "options": {}
+      },
+      "id": "check-fortune-cache",
+      "name": "Check Fortune Cache",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },\n          "conditions": [\n            {\n              "id": "cache-exists",\n              "leftValue": "={{ $json.cacheKey }}",\n              "rightValue": "",\n              "operator": {\n                "type": "string",\n                "operation": "notEmpty"\n              }\n            }\n          ],\n          "combinator": "and"\n        },\n        "options": {}\n      },\n      "id": "if-cache-exists",\n      "name": "IF Cache Exists",\n      "type": "n8n-nodes-base.if",\n      "typeVersion": 2,\n      "position": [\n        1340,\n        620\n      ]\n    },\n    {\n      "parameters": {\n        "method": "POST",\n        "url": "https://your-ai-service.com/fortune",\n        "sendBody": true,\n        "bodyParameters": {\n          "parameters": [\n            {\n              "name": "birthChart",\n              "value": "={{ $json.birthChart }}"\n            },\n            {\n              "name": "category",\n              "value": "={{ $json.category }}"\n            },\n            {\n              "name": "additionalData",\n              "value": "={{ $json.additionalData }}"\n            }\n          ]\n        },\n        "options": {}\n      },\n      "id": "call-ai-service",\n      "name": "Call AI Service",\n      "type": "n8n-nodes-base.httpRequest",\n      "typeVersion": 4.2,\n      "position": [\n        1560,\n        720\n      ]\n    },\n    {\n      "parameters": {\n        "jsCode": "// Use cached fortune result\nconst cachedResult = $input.first().json;\nconst replyToken = $('route-fortune-analysis').first().json.replyToken;\n\n// Add cache info to result\nconst analysisInfo = cachedResult.analysisDateTime;\nconst cacheNote = `\\n\\n📅 ข้อมูลดวง${analysisInfo.type} วันที่ ${analysisInfo.date}${analysisInfo.time !== 'ไม่ระบุ' ? ` เวลา ${analysisInfo.time}` : ''}\\n(ข้อมูลจากการวิเคราะห์ครั้งก่อน)`;\n\nconst fortuneResult = cachedResult.result + cacheNote;\n\nreturn {\n  replyToken,\n  message: {\n    type: 'text',\n    text: fortuneResult\n  }\n};"\n      },\n      "id": "use-cached-result",\n      "name": "Use Cached Result",\n      "type": "n8n-nodes-base.code",\n      "typeVersion": 2,\n      "position": [\n        1560,\n        520\n      ]\n    },\n    {\n      "parameters": {\n        "jsCode": "// Process new AI result and cache it\nconst aiResult = $input.first().json.fortuneResult;\nconst userId = $('route-fortune-analysis').first().json.userId;\nconst category = $('route-fortune-analysis').first().json.category;\nconst replyToken = $('route-fortune-analysis').first().json.replyToken;\n\n// Validate and sanitize the message\nlet messageText = aiResult;\n\n// Check if message is too long (LINE limit is 5000 characters)\nif (messageText && messageText.length > 5000) {\n  messageText = messageText.substring(0, 4900) + '...\\n\\n(ข้อความถูกย่อเนื่องจากความยาวเกินกำหนด)';\n}\n\n// Check if message is empty or null\nif (!messageText || messageText.trim() === '') {\n  messageText = 'ขออภัยค่ะ ไม่สามารถดูโชคลาภได้ในขณะนี้ กรุณาลองใหม่อีกครั้งค่ะ';\n}\n\nreturn {\n  replyToken,\n  message: {\n    type: 'text',\n    text: messageText\n  },\n  userId,\n  category,\n  fortuneResult: aiResult\n};"\n      },\n      "id": "process-ai-result",\n      "name": "Process AI Result",\n      "type": "n8n-nodes-base.code",\n      "typeVersion": 2,\n      "position": [\n        1780,\n        720\n      ]\n    },\n    {\n      "parameters": {\n        "jsCode": "// Handle delete data confirmation\nconst replyToken = $input.first().json.replyToken;\n\nconst confirmMessage = {\n  type: 'flex',\n  altText: 'ยืนยันการลบข้อมูล',\n  contents: {\n    type: 'bubble',\n    body: {\n      type: 'box',\n      layout: 'vertical',\n      contents: [\n        {\n          type: 'text',\n          text: '⚠️ ยืนยันการลบข้อมูล',\n          weight: 'bold',\n          size: 'lg',\n          color: '#FF6B6B'\n        },\n        {\n          type: 'text',\n          text: 'คุณต้องการลบข้อมูลทั้งหมดของคุณหรือไม่?',\n          size: 'md',\n          margin: 'md',\n          wrap: true\n        },\n        {\n          type: 'text',\n          text: '• ข้อมูลเกิด\\n• ข้อมูล Birth Chart\\n• ข้อมูลเพิ่มเติมทั้งหมด\\n• ประวัติการวิเคราะห์',\n          size: 'sm',\n          margin: 'md',\n          color: '#666666'\n        },\n        {\n          type: 'text',\n          text: 'การกระทำนี้ไม่สามารถย้อนกลับได้',\n          size: 'sm',\n          margin: 'md',\n          color: '#FF6B6B',\n          weight: 'bold'\n        }\n      ]\n    },\n    footer: {\n      type: 'box',\n      layout: 'vertical',\n      spacing: 'sm',\n      contents: [\n        {\n          type: 'button',\n          action: {\n            type: 'postback',\n            label: '❌ ยกเลิก',\n            data: 'action=cancel_delete'\n          },\n          style: 'secondary'\n        },\n        {\n          type: 'button',\n          action: {\n            type: 'postback',\n            label: '🗑️ ยืนยันลบข้อมูลทั้งหมด',\n            data: 'action=confirm_delete_all'\n          },\n          style: 'primary',\n          color: '#FF6B6B'\n        }\n      ]\n    }\n  }\n};\n\nreturn {\n  replyToken,\n  message: confirmMessage\n};"\n      },\n      "id": "handle-delete-request",\n      "name": "Handle Delete Request",\n      "type": "n8n-nodes-base.code",\n      "typeVersion": 2,\n      "position": [\n        1120,\n        720\n      ]\n    },\n    {\n      "parameters": {\n        "authentication": "genericCredentialType",\n        "genericAuthType": "httpHeaderAuth",\n        "method": "POST",\n        "url": "https://api.line.me/v2/bot/message/reply",\n        "sendHeaders": true,\n        "headerParameters": {\n          "parameters": [\n            {\n              "name": "Authorization",\n              "value": "Bearer YOUR_CHANNEL_ACCESS_TOKEN"\n            },\n            {\n              "name": "Content-Type",\n              "value": "application/json"\n            }\n          ]\n        },\n        "sendBody": true,\n        "bodyParameters": {\n          "parameters": [\n            {\n              "name": "replyToken",\n              "value": "={{ $json.replyToken }}"\n            },\n            {\n              "name": "messages",\n              "value": "={{ [$json.message] }}"\n            }\n          ]\n        },\n        "options": {}\n      },\n      "id": "send-line-reply",\n      "name": "Send LINE Reply",\n      "type": "n8n-nodes-base.httpRequest",\n      "typeVersion": 4.2,\n      "position": [\n        2000,\n        400\n      ]\n    },\n    {\n      "parameters": {\n        "method": "POST",\n        "url": "https://your-database-api.com/birth-data",\n        "sendBody": true,\n        "bodyParameters": {\n          "parameters": [\n            {\n              "name": "userId",\n              "value": "={{ $json.userId }}"\n            },\n            {\n              "name": "birthData",\n              "value": "={{ $json.birthData }}"\n            }\n          ]\n        },\n        "options": {}\n      },\n      "id": "save-birth-data",\n      "name": "Save Birth Data",\n      "type": "n8n-nodes-base.httpRequest",\n      "typeVersion": 4.2,\n      "position": [\n        1340,\n        200\n      ]\n    },\n    {\n      "parameters": {\n        "method": "POST",\n        "url": "https://your-database-api.com/birth-chart",\n        "sendBody": true,\n        "bodyParameters": {\n          "parameters": [\n            {\n              "name": "userId",\n              "value": "={{ $json.userId }}"\n            },\n            {\n              "name": "birthChart",\n              "value": "={{ $json.birthChart }}"\n            }\n          ]\n        },\n        "options": {}\n      },\n      "id": "save-birth-chart",\n      "name": "Save Birth Chart",\n      "type": "n8n-nodes-base.httpRequest",\n      "typeVersion": 4.2,\n      "position": [\n        1560,\n        200\n      ]\n    },\n    {\n      "parameters": {\n        "method": "POST",\n        "url": "https://your-database-api.com/additional-data",\n        "sendBody": true,\n        "bodyParameters": {\n          "parameters": [\n            {\n              "name": "userId",\n              "value": "={{ $json.userId }}"\n            },\n            {\n              "name": "category",\n              "value": "={{ $json.category }}"\n            },\n            {\n              "name": "additionalData",\n              "value": "={{ $json.additionalData }}"\n            }\n          ]\n        },\n        "options": {}\n      },\n      "id": "save-additional-data",\n      "name": "Save Additional Data",\n      "type": "n8n-nodes-base.httpRequest",\n      "typeVersion": 4.2,\n      "position": [\n        1340,\n        300\n      ]\n    },\n    {\n      "parameters": {\n        "method": "POST",\n        "url": "https://your-database-api.com/fortune-cache",\n        "sendBody": true,\n        "bodyParameters": {\n          "parameters": [\n            {\n              "name": "userId",\n              "value": "={{ $json.userId }}"\n            },\n            {\n              "name": "category",\n              "value": "={{ $json.category }}"\n            },\n            {\n              "name": "fortuneResult",\n              "value": "={{ $json.fortuneResult }}"\n            }\n          ]\n        },\n        "options": {}\n      },\n      "id": "save-fortune-cache",\n      "name": "Save Fortune Cache",\n      "type": "n8n-nodes-base.httpRequest",\n      "typeVersion": 4.2,\n      "position": [\n        2000,\n        720\n      ]\n    }\n  ],\n  "connections": {\n    "webhook-line": {\n      "main": [\n        [\n          {\n            "node": "if-text-message",\n            "type": "main",\n            "index": 0\n          },\n          {\n            "node": "if-postback",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "if-text-message": {\n      "main": [\n        [\n          {\n            "node": "parse-text-message",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "if-postback": {\n      "main": [\n        [\n          {\n            "node": "parse-postback",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "parse-text-message": {\n      "main": [\n        [\n          {\n            "node": "route-greeting",\n            "type": "main",\n            "index": 0\n          },\n          {\n            "node": "route-birth-chart",\n            "type": "main",\n            "index": 0\n          },\n          {\n            "node": "route-additional-data",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "parse-postback": {\n      "main": [\n        [\n          {\n            "node": "route-category-selection",\n            "type": "main",\n            "index": 0\n          },\n          {\n            "node": "route-fortune-analysis",\n            "type": "main",\n            "index": 0\n          },\n          {\n            "node": "route-delete-data",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "route-greeting": {\n      "main": [\n        [\n          {\n            "node": "get-birth-data",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "route-birth-chart": {\n      "main": [\n        [\n          {\n            "node": "handle-birth-chart",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "route-additional-data": {\n      "main": [\n        [\n          {\n            "node": "handle-additional-data",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "route-category-selection": {\n      "main": [\n        [\n          {\n            "node": "handle-category-selection",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "route-fortune-analysis": {\n      "main": [\n        [\n          {\n            "node": "check-fortune-cache",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "route-delete-data": {\n      "main": [\n        [\n          {\n            "node": "handle-delete-request",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "get-birth-data": {\n      "main": [\n        [\n          {\n            "node": "handle-greeting",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "handle-greeting": {\n      "main": [\n        [\n          {\n            "node": "send-line-reply",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "handle-birth-chart": {\n      "main": [\n        [\n          {\n            "node": "save-birth-data",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "handle-additional-data": {\n      "main": [\n        [\n          {\n            "node": "save-additional-data",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "handle-category-selection": {\n      "main": [\n        [\n          {\n            "node": "send-line-reply",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "check-fortune-cache": {\n      "main": [\n        [\n          {\n            "node": "if-cache-exists",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "if-cache-exists": {\n      "main": [\n        [\n          {\n            "node": "use-cached-result",\n            "type": "main",\n            "index": 0\n          }\n        ],\n        [\n          {\n            "node": "call-ai-service",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "call-ai-service": {\n      "main": [\n        [\n          {\n            "node": "process-ai-result",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "use-cached-result": {\n      "main": [\n        [\n          {\n            "node": "send-line-reply",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "process-ai-result": {\n      "main": [\n        [\n          {\n            "node": "save-fortune-cache",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "handle-delete-request": {\n      "main": [\n        [\n          {\n            "node": "send-line-reply",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "save-birth-data": {\n      "main": [\n        [\n          {\n            "node": "save-birth-chart",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "save-birth-chart": {\n      "main": [\n        [\n          {\n            "node": "send-line-reply",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "save-additional-data": {\n      "main": [\n        [\n          {\n            "node": "send-line-reply",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "save-fortune-cache": {\n      "main": [\n        [\n          {\n            "node": "send-line-reply",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    }\n  },\n  "pinData": {},\n  "settings": {\n    "executionOrder": "v1"\n  },\n  "staticData": null,\n  "tags": [],\n  "triggerCount": 0,\n  "updatedAt": "2025-01-06T06:30:00.000Z",\n  "versionId": "1"\n}

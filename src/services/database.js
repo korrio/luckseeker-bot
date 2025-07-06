@@ -7,6 +7,7 @@ class Database {
     this.birthDataFile = path.join(this.dataDir, 'birthData.json');
     this.birthChartFile = path.join(this.dataDir, 'birthChart.json');
     this.additionalDataFile = path.join(this.dataDir, 'additionalData.json');
+    this.fortuneCacheFile = path.join(this.dataDir, 'fortuneCache.json');
     
     this.initializeDatabase();
   }
@@ -25,6 +26,7 @@ class Database {
         partner: {},
         relocation: {}
       });
+      await this.initializeFile(this.fortuneCacheFile, {});
     } catch (error) {
       console.error('Error initializing database:', error);
     }
@@ -134,6 +136,132 @@ class Database {
       partnerData: data.partner?.[userId] || null,
       relocationData: data.relocation?.[userId] || null
     };
+  }
+
+  // Fortune Cache methods
+  generateCacheKey(userId, category, birthChart, additionalData) {
+    // Create a hash key based on user data, category and relevant data
+    const keyData = {
+      userId,
+      category,
+      birthChartTimestamp: birthChart.timestamp,
+      additionalDataTimestamp: this.getRelevantAdditionalDataTimestamp(category, additionalData)
+    };
+    return Buffer.from(JSON.stringify(keyData)).toString('base64');
+  }
+
+  getRelevantAdditionalDataTimestamp(category, additionalData) {
+    // Get timestamp of relevant additional data based on category
+    switch (category) {
+      case 'ซื้อหวย':
+        return additionalData.lotteryData?.timestamp || null;
+      case 'ดวงธุรกิจ':
+        return additionalData.businessData?.timestamp || null;
+      case 'พบรัก':
+        return additionalData.partnerData?.timestamp || null;
+      case 'ย้ายงาน':
+        return additionalData.relocationData?.timestamp || null;
+      default:
+        return null;
+    }
+  }
+
+  async getFortuneCache(cacheKey) {
+    const cache = await this.readFile(this.fortuneCacheFile);
+    return cache[cacheKey] || null;
+  }
+
+  async setFortuneCache(cacheKey, fortuneResult, category, additionalData) {
+    const cache = await this.readFile(this.fortuneCacheFile);
+    
+    // Get analysis date/time from additional data
+    const analysisDateTime = this.getAnalysisDateTime(category, additionalData);
+    
+    cache[cacheKey] = {
+      result: fortuneResult,
+      category,
+      analysisDateTime,
+      timestamp: new Date().toISOString()
+    };
+    
+    await this.writeFile(this.fortuneCacheFile, cache);
+  }
+
+  getAnalysisDateTime(category, additionalData) {
+    // Extract date/time from relevant additional data
+    switch (category) {
+      case 'ซื้อหวย':
+        if (additionalData.lotteryData) {
+          return {
+            date: additionalData.lotteryData.date,
+            time: additionalData.lotteryData.time,
+            type: 'ซื้อหวย'
+          };
+        }
+        break;
+      case 'ดวงธุรกิจ':
+        if (additionalData.businessData) {
+          return {
+            date: additionalData.businessData.date,
+            time: additionalData.businessData.time,
+            type: 'ดวงธุรกิจ'
+          };
+        }
+        break;
+      case 'พบรัก':
+        if (additionalData.partnerData) {
+          return {
+            date: additionalData.partnerData.meetingDate || 'ไม่ระบุ',
+            time: 'ไม่ระบุ',
+            type: 'พบรัก'
+          };
+        }
+        break;
+      case 'ย้ายงาน':
+        if (additionalData.relocationData) {
+          return {
+            date: additionalData.relocationData.date,
+            time: 'ไม่ระบุ',
+            type: 'ย้ายงาน'
+          };
+        }
+        break;
+    }
+    
+    return {
+      date: 'ไม่ระบุ',
+      time: 'ไม่ระบุ',
+      type: category
+    };
+  }
+
+  async deleteUserFortuneCache(userId) {
+    const cache = await this.readFile(this.fortuneCacheFile);
+    
+    // Find and delete all cache entries for this user
+    const keysToDelete = [];
+    for (const [cacheKey, cacheData] of Object.entries(cache)) {
+      try {
+        // Decode the cache key to check if it belongs to this user
+        const keyData = JSON.parse(Buffer.from(cacheKey, 'base64').toString());
+        if (keyData.userId === userId) {
+          keysToDelete.push(cacheKey);
+        }
+      } catch (error) {
+        // Skip invalid cache keys
+        console.warn('Invalid cache key format:', cacheKey);
+      }
+    }
+    
+    // Delete all matching cache entries
+    keysToDelete.forEach(key => {
+      delete cache[key];
+    });
+    
+    if (keysToDelete.length > 0) {
+      await this.writeFile(this.fortuneCacheFile, cache);
+      console.log(`Deleted ${keysToDelete.length} fortune cache entries for user ${userId}`);
+    }
   }
 
   // Cleanup old data (optional - removes data older than specified days)

@@ -389,6 +389,20 @@ async function handleGreeting(event) {
                 data: 'action=select_category&category=ย้ายงาน'
               },
               style: 'primary'
+            },
+            {
+              type: 'separator',
+              margin: 'md'
+            },
+            {
+              type: 'button',
+              action: {
+                type: 'postback',
+                label: '🗑️ ลบข้อมูลของฉันทั้งหมด',
+                data: 'action=delete_all_data'
+              },
+              style: 'secondary',
+              color: '#FF6B6B'
             }
           ]
         }
@@ -684,7 +698,33 @@ async function processFortuneCalculation(event, category) {
     // Prepare additional data for fortune calculation
     const additionalData = await database.getAllAdditionalData(userId);
 
-    const fortuneResult = await fortuneService.getFortune(birthChart, category, additionalData);
+    // Generate cache key
+    const cacheKey = database.generateCacheKey(userId, category, birthChart, additionalData);
+    
+    // Check if we have cached result
+    const cachedResult = await database.getFortuneCache(cacheKey);
+    
+    let fortuneResult;
+    let isCached = false;
+    
+    if (cachedResult) {
+      // Use cached result
+      fortuneResult = cachedResult.result;
+      isCached = true;
+      console.log("Using cached fortune result for", category);
+      
+      // Add cache info to result
+      const analysisInfo = cachedResult.analysisDateTime;
+      const cacheNote = `\n\n📅 ข้อมูลดวง${analysisInfo.type} วันที่ ${analysisInfo.date}${analysisInfo.time !== 'ไม่ระบุ' ? ` เวลา ${analysisInfo.time}` : ''}\n(ข้อมูลจากการวิเคราะห์ครั้งก่อน)`;
+      fortuneResult += cacheNote;
+    } else {
+      // Get new result from AI
+      fortuneResult = await fortuneService.getFortune(birthChart, category, additionalData);
+      
+      // Cache the result
+      await database.setFortuneCache(cacheKey, fortuneResult, category, additionalData);
+      console.log("Cached new fortune result for", category);
+    }
 
     console.log("fortuneResult", fortuneResult);
     
@@ -850,6 +890,119 @@ async function handlePostback(event) {
     };
 
     return client.replyMessage(event.replyToken, fortuneCategories);
+  }
+  
+  if (data === 'action=delete_all_data') {
+    const userId = event.source.userId;
+    
+    // Show confirmation message
+    const confirmMessage = {
+      type: 'flex',
+      altText: 'ยืนยันการลบข้อมูล',
+      contents: {
+        type: 'bubble',
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: '⚠️ ยืนยันการลบข้อมูล',
+              weight: 'bold',
+              size: 'lg',
+              color: '#FF6B6B'
+            },
+            {
+              type: 'text',
+              text: 'คุณต้องการลบข้อมูลทั้งหมดของคุณหรือไม่?',
+              size: 'md',
+              margin: 'md',
+              wrap: true
+            },
+            {
+              type: 'text',
+              text: '• ข้อมูลเกิด\n• ข้อมูล Birth Chart\n• ข้อมูลเพิ่มเติมทั้งหมด\n• ประวัติการวิเคราะห์',
+              size: 'sm',
+              margin: 'md',
+              color: '#666666'
+            },
+            {
+              type: 'text',
+              text: 'การกระทำนี้ไม่สามารถย้อนกลับได้',
+              size: 'sm',
+              margin: 'md',
+              color: '#FF6B6B',
+              weight: 'bold'
+            }
+          ]
+        },
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'sm',
+          contents: [
+            {
+              type: 'button',
+              action: {
+                type: 'postback',
+                label: '❌ ยกเลิก',
+                data: 'action=cancel_delete'
+              },
+              style: 'secondary'
+            },
+            {
+              type: 'button',
+              action: {
+                type: 'postback',
+                label: '🗑️ ยืนยันลบข้อมูลทั้งหมด',
+                data: 'action=confirm_delete_all'
+              },
+              style: 'primary',
+              color: '#FF6B6B'
+            }
+          ]
+        }
+      }
+    };
+    
+    return client.replyMessage(event.replyToken, confirmMessage);
+  }
+  
+  if (data === 'action=cancel_delete') {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'ยกเลิกการลบข้อมูลแล้วค่ะ ข้อมูลของคุณยังคงอยู่ปลอดภัย ✅'
+    });
+  }
+  
+  if (data === 'action=confirm_delete_all') {
+    const userId = event.source.userId;
+    
+    try {
+      // Delete all user data
+      await database.deleteBirthData(userId);
+      await database.deleteBirthChart(userId);
+      
+      // Delete all additional data types
+      await database.deleteAdditionalData(userId, 'lottery');
+      await database.deleteAdditionalData(userId, 'business');
+      await database.deleteAdditionalData(userId, 'partner');
+      await database.deleteAdditionalData(userId, 'relocation');
+      
+      // Delete fortune cache (we need to add this method)
+      await database.deleteUserFortuneCache(userId);
+      
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '✅ ลบข้อมูลทั้งหมดเรียบร้อยแล้วค่ะ\n\nหากต้องการใช้งานอีกครั้ง กรุณากรอกข้อมูลเกิดใหม่ค่ะ'
+      });
+    } catch (error) {
+      console.error('Error deleting user data:', error);
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'เกิดข้อผิดพลาดในการลบข้อมูล กรุณาลองใหม่อีกครั้งค่ะ'
+      });
+    }
   }
   
   if (data === 'action=view_history') {
