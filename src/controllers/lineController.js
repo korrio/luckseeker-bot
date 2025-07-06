@@ -261,7 +261,7 @@ async function handleEvent(event) {
     const userId = event.source.userId;
     const message = event.message.text.trim();
 
-    if (message === 'เริ่มต้น' || message.includes('สวัสดี') || message.includes('hello')) {
+    if (message === 'เริ่มต้น' || message.includes('สวัสดี') || message.includes('hello') || message.includes('ไง')) {
       return handleGreeting(event);
     }
 
@@ -464,7 +464,7 @@ async function handleGreeting(event) {
               action: {
                 type: 'uri',
                 label: 'กรอกข้อมูลเกิด',
-                uri: `https://liff.line.me/${config.line.liffId}`
+                uri: `https://miniapp.line.me/${config.line.liffId}`
               },
               style: 'primary',
               color: '#7B68EE'
