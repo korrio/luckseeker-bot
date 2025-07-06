@@ -47,6 +47,8 @@ function parseFortuneResult(fortuneText) {
     advice: ''
   };
 
+  console.log("fortuneText+++",fortuneText)
+
   try {
     // Extract timestamp
     const timeMatch = fortuneText.match(/\*\*ช่วงเวลา\*\*\s*:\s*(.+)/);
@@ -56,6 +58,9 @@ function parseFortuneResult(fortuneText) {
 
     // Extract Lucky Score
     const scoreMatch = fortuneText.match(/\*\*Lucky-Score\*\*\s*:\s*(\d+)\s*\/\s*100/);
+
+    console.log("scoreMatch+++",scoreMatch)
+
     if (scoreMatch) {
       parsed.luckyScore = parseInt(scoreMatch[1]);
       if (parsed.luckyScore >= 80) {
@@ -278,6 +283,11 @@ async function handleEvent(event) {
           text: 'กรุณากรอกข้อมูลเกิดก่อนค่ะ'
         });
       }
+    }
+
+    // Handle additional data inputs for fortune categories
+    if (message.startsWith('business:') || message.startsWith('love:') || message.startsWith('relocation:')) {
+      return handleAdditionalData(event, message);
     }
 
     return handleGeneralMessage(event);
@@ -592,6 +602,27 @@ async function handleFortuneCategory(event, category) {
     });
   }
 
+  // Check if additional data is needed for this category
+  if (category === 'ดวงธุรกิจ') {
+    // Check if business data already exists
+    const businessData = global.userBusinessData?.[userId];
+    if (!businessData) {
+      return requestBusinessData(event);
+    }
+  } else if (category === 'พบรัก') {
+    // Check if partner data already exists
+    const partnerData = global.userPartnerData?.[userId];
+    if (!partnerData) {
+      return requestPartnerData(event);
+    }
+  } else if (category === 'ย้ายงาน') {
+    // Check if relocation data already exists
+    const relocationData = global.userRelocationData?.[userId];
+    if (!relocationData) {
+      return requestRelocationData(event);
+    }
+  }
+
   try {
     // Show loading animation while processing AI request
     try {
@@ -601,7 +632,14 @@ async function handleFortuneCategory(event, category) {
       // Continue without loading animation if it fails
     }
 
-    const fortuneResult = await fortuneService.getFortune(birthChart, category);
+    // Prepare additional data for fortune calculation
+    const additionalData = {
+      businessData: global.userBusinessData?.[userId],
+      partnerData: global.userPartnerData?.[userId],
+      relocationData: global.userRelocationData?.[userId]
+    };
+
+    const fortuneResult = await fortuneService.getFortune(birthChart, category, additionalData);
 
     console.log("fortuneResult",fortuneResult)
     
@@ -729,6 +767,13 @@ async function handlePostback(event) {
       text: '📊 ฟีเจอร์ประวัติการวิเคราะห์จะเปิดให้บริการเร็วๆ นี้ค่ะ กรุณารอติดตามนะคะ 🙏'
     });
   }
+  
+  if (data === 'action=share_location') {
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'กรุณาแชร์ตำแหน่งปัจจุบันของคุณ หรือพิมพ์ข้อมูลการย้ายตามรูปแบบที่กำหนดค่ะ'
+    });
+  }
 
   // Default response for unknown postback
   return client.replyMessage(event.replyToken, {
@@ -781,6 +826,238 @@ const webhookHandler = (req, res) => {
       res.status(500).json({ error: 'Internal server error' });
     });
 };
+
+// Functions to request additional data for different categories
+async function requestBusinessData(event) {
+  const flexMessage = {
+    type: 'flex',
+    altText: 'กรุณาใส่ข้อมูลการนัดหมายธุรกิจ',
+    contents: {
+      type: 'bubble',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: '💼 ดวงธุรกิจ',
+            weight: 'bold',
+            size: 'xl',
+            color: '#7B68EE'
+          },
+          {
+            type: 'text',
+            text: 'กรุณาใส่ข้อมูลการนัดหมายธุรกิจ',
+            size: 'md',
+            margin: 'md'
+          },
+          {
+            type: 'text',
+            text: 'รูปแบบ: business:วันที่,เวลา,สถานที่',
+            size: 'sm',
+            margin: 'sm',
+            color: '#999999'
+          },
+          {
+            type: 'text',
+            text: 'ตอบกลับ: business:15/07/2568,14:00,ห้องประชุม A',
+            size: 'sm',
+            margin: 'sm',
+            color: '#999999'
+          }
+        ]
+      }
+    }
+  };
+  
+  return client.replyMessage(event.replyToken, flexMessage);
+}
+
+async function requestPartnerData(event) {
+  const flexMessage = {
+    type: 'flex',
+    altText: 'กรุณาใส่วันเกิดของคู่รัก',
+    contents: {
+      type: 'bubble',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: '💕 พบรัก',
+            weight: 'bold',
+            size: 'xl',
+            color: '#7B68EE'
+          },
+          {
+            type: 'text',
+            text: 'กรุณาใส่วันเกิดของคู่รัก',
+            size: 'md',
+            margin: 'md'
+          },
+          {
+            type: 'text',
+            text: 'รูปแบบ: love:วันเกิด,เวลาเกิด',
+            size: 'sm',
+            margin: 'sm',
+            color: '#999999'
+          },
+          {
+            type: 'text',
+            text: 'ตอบกลับ: love:15/07/2540,14:30',
+            size: 'sm',
+            margin: 'sm',
+            color: '#999999'
+          }
+        ]
+      }
+    }
+  };
+  
+  return client.replyMessage(event.replyToken, flexMessage);
+}
+
+async function requestRelocationData(event) {
+  const flexMessage = {
+    type: 'flex',
+    altText: 'กรุณาใส่ข้อมูลการย้าย',
+    contents: {
+      type: 'bubble',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: '🔄 ย้ายงาน/ย้ายบ้าน',
+            weight: 'bold',
+            size: 'xl',
+            color: '#7B68EE'
+          },
+          {
+            type: 'text',
+            text: 'กรุณาใส่ข้อมูลการย้าย',
+            size: 'md',
+            margin: 'md'
+          },
+          {
+            type: 'text',
+            text: 'รูปแบบ: relocation:วันที่,เวลา,สถานที่',
+            size: 'sm',
+            margin: 'sm',
+            color: '#999999'
+          },
+          {
+            type: 'text',
+            text: 'ตอบกลับ: relocation:15/07/2568,09:00,กรุงเทพฯ',
+            size: 'sm',
+            margin: 'sm',
+            color: '#999999'
+          }
+        ]
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'button',
+            action: {
+              type: 'postback',
+              label: 'แชร์ตำแหน่งปัจจุบัน',
+              data: 'action=share_location'
+            },
+            style: 'secondary',
+            margin: 'sm'
+          }
+        ]
+      }
+    }
+  };
+  
+  return client.replyMessage(event.replyToken, flexMessage);
+}
+
+// Handle additional data inputs
+async function handleAdditionalData(event, message) {
+  const userId = event.source.userId;
+  
+  try {
+    if (message.startsWith('business:')) {
+      const data = message.replace('business:', '').split(',');
+      if (data.length >= 3) {
+        global.userBusinessData = global.userBusinessData || {};
+        global.userBusinessData[userId] = {
+          date: data[0].trim(),
+          time: data[1].trim(),
+          location: data[2].trim(),
+          timestamp: new Date().toISOString()
+        };
+        
+        return client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'ได้รับข้อมูลการนัดหมายธุรกิจแล้วค่ะ กำลังวิเคราะห์ดวงธุรกิจ...'
+        }).then(() => {
+          // Process business fortune after confirming data received
+          return handleFortuneCategory(event, 'ดวงธุรกิจ');
+        });
+      }
+    } else if (message.startsWith('love:')) {
+      const data = message.replace('love:', '').split(',');
+      if (data.length >= 2) {
+        global.userPartnerData = global.userPartnerData || {};
+        global.userPartnerData[userId] = {
+          birthdate: data[0].trim(),
+          birthtime: data[1].trim(),
+          timestamp: new Date().toISOString()
+        };
+        
+        return client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'ได้รับข้อมูลคู่รักแล้วค่ะ กำลังวิเคราะห์ดวงความรัก...'
+        }).then(() => {
+          // Process love fortune after confirming data received
+          const data = handleFortuneCategory(event, 'พบรัก');
+          console.log("handleFortuneCategory",handleFortuneCategory)
+          return data
+        });
+      }
+    } else if (message.startsWith('relocation:')) {
+      const data = message.replace('relocation:', '').split(',');
+      if (data.length >= 3) {
+        global.userRelocationData = global.userRelocationData || {};
+        global.userRelocationData[userId] = {
+          date: data[0].trim(),
+          time: data[1].trim(),
+          location: data[2].trim(),
+          timestamp: new Date().toISOString()
+        };
+        
+        return client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'ได้รับข้อมูลการย้ายแล้วค่ะ กำลังวิเคราะห์ดวงการย้าย...'
+        }).then(() => {
+          // Process relocation fortune after confirming data received
+          return handleFortuneCategory(event, 'ย้ายงาน');
+        });
+      }
+    }
+    
+    // If format is incorrect
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'รูปแบบข้อมูลไม่ถูกต้องค่ะ กรุณาลองใหม่อีกครั้งค่ะ'
+    });
+    
+  } catch (error) {
+    console.error('Error handling additional data:', error);
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'ขออภัยค่ะ เกิดข้อผิดพลาดในการรับข้อมูล กรุณาลองใหม่อีกครั้งค่ะ'
+    });
+  }
+}
 
 module.exports = webhookHandler;
 module.exports.__handleBirthChart = handleBirthChart;

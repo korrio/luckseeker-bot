@@ -2,7 +2,7 @@ const birthChartService = require('./birthChartService');
 const aiService = require('./aiService');
 
 class FortuneService {
-  async getFortune(birthChart, category) {
+  async getFortune(birthChart, category, additionalData = {}) {
     try {
       const currentDate = new Date();
       
@@ -14,7 +14,8 @@ class FortuneService {
         ...birthChart,
         transits,
         luckyScore,
-        currentDate: currentDate.toISOString()
+        currentDate: currentDate.toISOString(),
+        additionalData
       };
 
       const fortuneResult = await aiService.getFortune(enhancedBirthChart, category);
