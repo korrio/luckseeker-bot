@@ -1,0 +1,401 @@
+{
+  "name": "LuckSeeker LINE Bot - Thai Fortune Telling",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ae5e9d94-7c3f-4c3f-8e3e-9c5b9e8f9e9e",
+      "name": "LINE Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.events[0].message.text.includes('สวัสดี') || $json.events[0].message.text.includes('hello') || $json.events[0].message.text.includes('เริ่มต้น')}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "be7e8d94-8c4f-4c3f-9e4e-0c6b0e9f0e0e",
+      "name": "Is Greeting?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.events[0].message.text.startsWith('birth:')}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "ce8e9d94-9d5f-5d4f-0f5e-1d7c1f0f1f1f",
+      "name": "Is Birth Data?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.events[0].message.text.startsWith('select_category:')}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "de9e0e05-0e6f-6e5f-1f6e-2e8d2f1f2f2f",
+      "name": "Is Category Selection?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.events[0].message.text.startsWith('additional:')}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "ee0f1f16-1f7f-7f6f-2f7e-3f9e3f2f3f3f",
+      "name": "Is Additional Data?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const userId = items[0].json.events[0].source.userId;\nconst hasBirthData = false; // Check cache in real implementation\n\nif (hasBirthData) {\n  // Return category menu\n  return [{\n    json: {\n      userId: userId,\n      messageType: 'category_menu',\n      message: {\n        type: 'text',\n        text: '🎯 เลือกหมวดโชคลาภ:\\n\\n1. 🎰 ซื้อหวย\\n2. 💕 พบรัก\\n3. 💼 ดวงธุรกิจ\\n4. 🔄 ย้ายงาน'\n      }\n    }\n  }];\n} else {\n  // Return welcome message\n  return [{\n    json: {\n      userId: userId,\n      messageType: 'welcome',\n      message: {\n        type: 'text',\n        text: '🌟 ยินดีต้อนรับสู่ LuckSeeker\\n\\nหมอดูโหราศาสตร์ AI ที่แม่นยำ\\n\\nกรุณากรอกข้อมูลเกิดก่อนเริ่มดูดวง'\n      }\n    }\n  }];\n}"
+      },
+      "id": "fe1f2f27-2f8f-8f7f-3f8e-4f0f4f3f4f4f",
+      "name": "Handle Greeting",
+      "type": "n8n-nodes-base.functionItem",
+      "typeVersion": 1,
+      "position": [460, 140]
+    },
+    {
+      "parameters": {
+        "functionCode": "const userId = items[0].json.events[0].source.userId;\nconst messageText = items[0].json.events[0].message.text;\nconst birthDataString = messageText.replace('birth:', '');\nconst birthData = JSON.parse(birthDataString);\n\n// Save birth data and generate birth chart\n// In real implementation, use Swiss Ephemeris\n\nreturn [{\n  json: {\n    userId: userId,\n    birthData: birthData,\n    messageType: 'birth_saved',\n    message: {\n      type: 'text',\n      text: '✅ บันทึกข้อมูลเกิดเรียบร้อย\\n\\n🎯 เลือกหมวดโชคลาภ:\\n\\n1. 🎰 ซื้อหวย\\n2. 💕 พบรัก\\n3. 💼 ดวงธุรกิจ\\n4. 🔄 ย้ายงาน'\n    }\n  }\n}];"
+      },
+      "id": "0f2f3f38-3f9f-9f8f-4f9e-5f1f5f4f5f5f",
+      "name": "Save Birth Data",
+      "type": "n8n-nodes-base.functionItem",
+      "typeVersion": 1,
+      "position": [680, 460]
+    },
+    {
+      "parameters": {
+        "functionCode": "const userId = items[0].json.events[0].source.userId;\nconst messageText = items[0].json.events[0].message.text;\nconst category = messageText.replace('select_category:', '');\n\nconst categoryNames = {\n  lottery: '🎰 ซื้อหวย',\n  love: '💕 พบรัก',\n  business: '💼 ดวงธุรกิจ',\n  relocation: '🔄 ย้ายงาน'\n};\n\nreturn [{\n  json: {\n    userId: userId,\n    category: category,\n    messageType: 'category_selected',\n    message: {\n      type: 'text',\n      text: `📋 กรอกข้อมูลเพิ่มเติมสำหรับ ${categoryNames[category]}\\n\\nกรุณากรอกข้อมูลเพิ่มเติมเพื่อความแม่นยำ`\n    }\n  }\n}];"
+      },
+      "id": "1f3f4f49-4f0f-0f9f-5f0e-6f2f6f5f6f6f",
+      "name": "Handle Category",
+      "type": "n8n-nodes-base.functionItem",
+      "typeVersion": 1,
+      "position": [900, 460]
+    },
+    {
+      "parameters": {
+        "functionCode": "const userId = items[0].json.events[0].source.userId;\nconst messageText = items[0].json.events[0].message.text;\nconst additionalDataString = messageText.replace('additional:', '');\nconst additionalData = JSON.parse(additionalDataString);\n\n// Calculate transits and lucky score\n// In real implementation, use Swiss Ephemeris\nconst luckyScore = Math.floor(Math.random() * 100);\n\nreturn [{\n  json: {\n    userId: userId,\n    additionalData: additionalData,\n    luckyScore: luckyScore,\n    messageType: 'ready_for_ai'\n  }\n}];"
+      },
+      "id": "2f4f5f50-5f1f-1f0f-6f1e-7f3f7f6f7f7f",
+      "name": "Process Additional Data",
+      "type": "n8n-nodes-base.functionItem",
+      "typeVersion": 1,
+      "position": [1120, 460]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$credentials.openai.apiKey}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-4o-mini"
+            },
+            {
+              "name": "messages",
+              "value": "={{JSON.stringify([{role:'system',content:'คุณคือหมอดูโหราศาสตร์ ตอบเป็นภาษาไทย'},{role:'user',content:'วิเคราะห์ดวงโชคลาภ Lucky Score: ' + $json.luckyScore}])}}"
+            },
+            {
+              "name": "max_tokens",
+              "value": "1000"
+            },
+            {
+              "name": "temperature",
+              "value": "0.7"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3f5f6f61-6f2f-2f1f-7f2e-8f4f8f7f8f8f",
+      "name": "Call OpenAI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1340, 460]
+    },
+    {
+      "parameters": {
+        "functionCode": "const aiResponse = items[0].json.choices[0].message.content;\nconst userId = items[0].json.userId;\n\nreturn [{\n  json: {\n    userId: userId,\n    fortune: aiResponse,\n    messageType: 'fortune_result',\n    message: {\n      type: 'text',\n      text: aiResponse\n    }\n  }\n}];"
+      },
+      "id": "4f6f7f72-7f3f-3f2f-8f3e-9f5f9f8f9f9f",
+      "name": "Format Fortune",
+      "type": "n8n-nodes-base.functionItem",
+      "typeVersion": 1,
+      "position": [1560, 460]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$credentials.line.channelAccessToken}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "replyToken",
+              "value": "={{$node['LINE Webhook'].json.events[0].replyToken}}"
+            },
+            {
+              "name": "messages",
+              "value": "={{JSON.stringify([$json.message])}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5f7f8f83-8f4f-4f3f-9f4e-0f6f0f9f0f0f",
+      "name": "Reply to LINE",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK"
+      },
+      "id": "6f8f9f94-9f5f-5f4f-0f5e-1f7f1f0f1f1f",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "LINE Webhook": {
+      "main": [
+        [
+          {
+            "node": "Is Greeting?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Greeting?": {
+      "main": [
+        [
+          {
+            "node": "Handle Greeting",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Birth Data?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Birth Data?": {
+      "main": [
+        [
+          {
+            "node": "Save Birth Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Category Selection?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Category Selection?": {
+      "main": [
+        [
+          {
+            "node": "Handle Category",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Additional Data?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Additional Data?": {
+      "main": [
+        [
+          {
+            "node": "Process Additional Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Greeting": {
+      "main": [
+        [
+          {
+            "node": "Reply to LINE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Birth Data": {
+      "main": [
+        [
+          {
+            "node": "Reply to LINE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Category": {
+      "main": [
+        [
+          {
+            "node": "Reply to LINE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Additional Data": {
+      "main": [
+        [
+          {
+            "node": "Call OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Format Fortune",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Fortune": {
+      "main": [
+        [
+          {
+            "node": "Reply to LINE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply to LINE": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0",
+  "id": "luckseeker-simple",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
