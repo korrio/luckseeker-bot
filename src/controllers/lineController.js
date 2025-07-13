@@ -275,6 +275,15 @@ async function handleEvent(event) {
       return handleAdditionalData(event, message);
     }
 
+    // Handle admin commands for quota management
+    if (message.startsWith('admin:addquota:')) {
+      return handleAdminAddQuota(event, message);
+    }
+
+    if (message === 'admin:quotastatus' || message === 'quota') {
+      return handleQuotaStatus(event);
+    }
+
     return handleGeneralMessage(event);
   } catch (error) {
     console.error('Error handling event:', {
@@ -624,7 +633,7 @@ async function handleFortuneCategory(event, category) {
     // Prepare additional data for fortune calculation
     const additionalData = await database.getAllAdditionalData(userId);
 
-    const fortuneResult = await fortuneService.getFortune(birthChart, category, additionalData);
+    const fortuneResult = await fortuneService.getFortune(birthChart, category, additionalData, 'chatgpt', userId);
 
     console.log("fortuneResult",fortuneResult)
     
@@ -719,7 +728,7 @@ async function processFortuneCalculation(event, category) {
       fortuneResult += cacheNote;
     } else {
       // Get new result from AI
-      fortuneResult = await fortuneService.getFortune(birthChart, category, additionalData);
+      fortuneResult = await fortuneService.getFortune(birthChart, category, additionalData, 'chatgpt', userId);
       
       // Cache the result
       await database.setFortuneCache(cacheKey, fortuneResult, category, additionalData);
@@ -1418,6 +1427,82 @@ async function handleAdditionalData(event, message) {
     return client.replyMessage(event.replyToken, {
       type: 'text',
       text: 'ขออภัยค่ะ เกิดข้อผิดพลาดในการรับข้อมูล กรุณาลองใหม่อีกครั้งค่ะ'
+    });
+  }
+}
+
+// Admin function to add quota for users
+async function handleAdminAddQuota(event, message) {
+  const userId = event.source.userId;
+  
+  try {
+    // Parse admin command: admin:addquota:targetUserId:amount
+    const parts = message.split(':');
+    if (parts.length < 3) {
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'รูปแบบคำสั่ง: admin:addquota:targetUserId:amount\nตัวอย่าง: admin:addquota:U123456:4'
+      });
+    }
+
+    const targetUserId = parts[2];
+    const amount = parseInt(parts[3]) || 4;
+
+    if (!targetUserId) {
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'กรุณาระบุ User ID ที่ต้องการเพิ่ม quota'
+      });
+    }
+
+    // Add quota for target user
+    const updatedQuota = await database.addUserQuota(targetUserId, amount);
+    
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: `✅ เพิ่ม quota สำเร็จ!\n\nUser ID: ${targetUserId}\nเพิ่ม: ${amount} ครั้ง\nคงเหลือ: ${updatedQuota.remainingQueries} ครั้ง\nรวมทั้งหมด: ${updatedQuota.totalQueries} ครั้ง`
+    });
+
+  } catch (error) {
+    console.error('Error handling admin add quota:', error);
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'ขออภัยค่ะ เกิดข้อผิดพลาดในการเพิ่ม quota'
+    });
+  }
+}
+
+// Function to check user's quota status
+async function handleQuotaStatus(event) {
+  const userId = event.source.userId;
+  
+  try {
+    const quota = await database.getUserQuota(userId);
+    
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: `📊 **สถานะการใช้งานของคุณ**
+
+🔢 **สิทธิ์คงเหลือ:** ${quota.remainingQueries} ครั้ง
+📈 **ใช้ไปแล้ว:** ${quota.usedQueries} ครั้ง
+💯 **สิทธิ์ทั้งหมด:** ${quota.totalQueries} ครั้ง
+
+📅 **อัพเดทล่าสุด:** ${new Date(quota.lastUpdated).toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })}
+
+${quota.remainingQueries === 0 ? '⚠️ **หมดสิทธิ์แล้ว** กรุณาติดต่อ Admin เพื่อเพิ่มสิทธิ์' : '✅ **ยังมีสิทธิ์ใช้งาน**'}`
+    });
+
+  } catch (error) {
+    console.error('Error checking quota status:', error);
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'ขออภัยค่ะ เกิดข้อผิดพลาดในการตรวจสอบสถานะ'
     });
   }
 }

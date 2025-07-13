@@ -8,6 +8,7 @@ class Database {
     this.birthChartFile = path.join(this.dataDir, 'birthChart.json');
     this.additionalDataFile = path.join(this.dataDir, 'additionalData.json');
     this.fortuneCacheFile = path.join(this.dataDir, 'fortuneCache.json');
+    this.quotaFile = path.join(this.dataDir, 'userQuota.json');
     
     this.initializeDatabase();
   }
@@ -27,6 +28,7 @@ class Database {
         relocation: {}
       });
       await this.initializeFile(this.fortuneCacheFile, {});
+      await this.initializeFile(this.quotaFile, {});
     } catch (error) {
       console.error('Error initializing database:', error);
     }
@@ -315,6 +317,93 @@ class Database {
     } catch (error) {
       console.error('Error cleaning up old data:', error);
     }
+  }
+
+  // Quota management methods
+  async getUserQuota(userId) {
+    const quotaData = await this.readFile(this.quotaFile);
+    if (!quotaData[userId]) {
+      // Initialize new user with 4 queries
+      quotaData[userId] = {
+        remainingQueries: 4,
+        totalQueries: 4,
+        usedQueries: 0,
+        lastUpdated: new Date().toISOString(),
+        resetDate: null
+      };
+      await this.writeFile(this.quotaFile, quotaData);
+    }
+    return quotaData[userId];
+  }
+
+  async decrementUserQuota(userId) {
+    const quotaData = await this.readFile(this.quotaFile);
+    
+    if (!quotaData[userId]) {
+      quotaData[userId] = {
+        remainingQueries: 4,
+        totalQueries: 4,
+        usedQueries: 0,
+        lastUpdated: new Date().toISOString(),
+        resetDate: null
+      };
+    }
+
+    if (quotaData[userId].remainingQueries > 0) {
+      quotaData[userId].remainingQueries--;
+      quotaData[userId].usedQueries++;
+      quotaData[userId].lastUpdated = new Date().toISOString();
+      
+      await this.writeFile(this.quotaFile, quotaData);
+      return true; // Success
+    }
+    
+    return false; // No remaining quota
+  }
+
+  async checkUserQuota(userId) {
+    const quota = await this.getUserQuota(userId);
+    return quota.remainingQueries > 0;
+  }
+
+  async addUserQuota(userId, additionalQueries = 4) {
+    const quotaData = await this.readFile(this.quotaFile);
+    
+    if (!quotaData[userId]) {
+      quotaData[userId] = {
+        remainingQueries: additionalQueries,
+        totalQueries: additionalQueries,
+        usedQueries: 0,
+        lastUpdated: new Date().toISOString(),
+        resetDate: null
+      };
+    } else {
+      quotaData[userId].remainingQueries += additionalQueries;
+      quotaData[userId].totalQueries += additionalQueries;
+      quotaData[userId].lastUpdated = new Date().toISOString();
+    }
+    
+    await this.writeFile(this.quotaFile, quotaData);
+    return quotaData[userId];
+  }
+
+  async resetUserQuota(userId, newQuotaAmount = 4) {
+    const quotaData = await this.readFile(this.quotaFile);
+    
+    quotaData[userId] = {
+      remainingQueries: newQuotaAmount,
+      totalQueries: newQuotaAmount,
+      usedQueries: 0,
+      lastUpdated: new Date().toISOString(),
+      resetDate: new Date().toISOString()
+    };
+    
+    await this.writeFile(this.quotaFile, quotaData);
+    return quotaData[userId];
+  }
+
+  async getAllUserQuotas() {
+    return await this.readFile(this.quotaFile);
   }
 }
 

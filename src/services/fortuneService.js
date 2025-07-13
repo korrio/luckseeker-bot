@@ -1,9 +1,18 @@
 const birthChartService = require('./birthChartService');
 const aiService = require('./aiService');
+const database = require('./database');
 
 class FortuneService {
-  async getFortune(birthChart, category, additionalData = {}, preferredProvider = 'chatgpt') {
+  async getFortune(birthChart, category, additionalData = {}, preferredProvider = 'chatgpt', userId = null) {
     try {
+      // Check user quota if userId is provided
+      if (userId) {
+        const hasQuota = await database.checkUserQuota(userId);
+        if (!hasQuota) {
+          return this.getQuotaExceededMessage();
+        }
+      }
+
       const currentDate = new Date();
       
       const transits = birthChartService.calculateTransits(birthChart, currentDate);
@@ -19,6 +28,13 @@ class FortuneService {
       };
 
       const fortuneResult = await aiService.getFortune(enhancedBirthChart, category, preferredProvider);
+
+      // Decrement user quota after successful AI service call
+      if (userId) {
+        await database.decrementUserQuota(userId);
+        const remainingQuota = await database.getUserQuota(userId);
+        console.log(`User ${userId} quota used. Remaining: ${remainingQuota.remainingQueries}`);
+      }
 
       console.log("fortuneResult",fortuneResult)
       
@@ -90,6 +106,20 @@ class FortuneService {
 - สังเกตดวงในช่วง 3-7 วันข้างหน้า
 - หลีกเลี่ยงการตัดสินใจสำคัญในช่วงนี้
 - ทำบุญเพื่อเสริมดวงชะตา
+
+🙏 ขอบคุณที่ใช้บริการ LuckSeeker ค่ะ`;
+  }
+
+  getQuotaExceededMessage() {
+    return `🚫 **หมดสิทธิ์การใช้งาน**
+
+ขออภัยค่ะ คุณได้ใช้สิทธิ์ดูดวงครบ 4 ครั้งแล้วในรอบนี้
+
+📞 **กรุณาติดต่อ Admin เพื่อดูดวงเพิ่มเติม**
+
+💫 **ขณะนี้คุณสามารถ:**
+- ติดต่อ Admin เพื่อเพิ่มสิทธิ์การใช้งาน
+- รอรอบใหม่เพื่อรับสิทธิ์เพิ่ม
 
 🙏 ขอบคุณที่ใช้บริการ LuckSeeker ค่ะ`;
   }
