@@ -1,6 +1,13 @@
 # Use official Node.js runtime as base image
 FROM node:18-alpine
 
+# Install build dependencies for native modules
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    curl
+
 # Set working directory in container
 WORKDIR /app
 
@@ -8,7 +15,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Copy application source code
 COPY . .

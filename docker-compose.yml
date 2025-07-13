@@ -82,21 +82,23 @@ services:
       timeout: 10s
       retries: 3
 
-  # Optional: Nginx reverse proxy
+  # Nginx reverse proxy for hora.aq1.co
   nginx:
     image: nginx:alpine
     container_name: luckseeker-nginx
     restart: unless-stopped
     ports:
       - "80:80"
-      - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
+    environment:
+      - DOMAIN=hora.aq1.co
     depends_on:
       - luckseeker-app
     networks:
       - luckseeker-network
+    labels:
+      - "traefik.enable=false"
 
 networks:
   luckseeker-network:

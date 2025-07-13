@@ -72,3 +72,7 @@ temp/
 
 # Database files (JSON-based storage)
 data/
+
+# SSL private keys (security)
+ssl/*.key
+ssl/*.pem
