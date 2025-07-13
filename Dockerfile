@@ -1,5 +1,5 @@
-# Use Node.js 16 with Python 3.7 (most stable for node-gyp)
-FROM node:16-bullseye-slim
+# Use Node.js 16 LTS with Python 3.9 (stable for node-gyp)
+FROM node:16-buster
 
 # Install build dependencies for native modules
 RUN apt-get update && apt-get install -y \
@@ -10,9 +10,6 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
     && rm -rf /var/lib/apt/lists/*
-
-# Upgrade npm to latest version
-RUN npm install -g npm@latest
 
 # Set working directory in container
 WORKDIR /app
