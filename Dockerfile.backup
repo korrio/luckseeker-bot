@@ -1,0 +1,59 @@
+# Multi-stage build for better compatibility
+FROM node:18-alpine as builder
+
+# Install build dependencies
+RUN apk add --no-cache \
+    python3 \
+    python3-dev \
+    py3-pip \
+    make \
+    g++ \
+    linux-headers
+
+# Install distutils for Python 3.12+
+RUN pip3 install setuptools
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev)
+RUN npm ci
+
+# Production stage
+FROM node:18-alpine
+
+# Install runtime dependencies
+RUN apk add --no-cache curl
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Copy built node_modules from builder stage
+COPY --from=builder /app/node_modules ./node_modules
+
+# Copy application source code
+COPY . .
+
+# Create a non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S luckseeker -u 1001
+
+# Change ownership of the app directory to nodejs user
+RUN chown -R luckseeker:nodejs /app
+USER luckseeker
+
+# Expose port
+EXPOSE 3000
+
+# Add health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
+
+# Start the application
+CMD ["npm", "start"]

@@ -1,12 +1,18 @@
-# Use official Node.js runtime as base image
-FROM node:18-alpine
+# Use Node.js 16 with Python 3.7 (most stable for node-gyp)
+FROM node:16-bullseye-slim
 
 # Install build dependencies for native modules
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     python3 \
-    make \
-    g++ \
-    curl
+    python3-dev \
+    python3-distutils \
+    python3-setuptools \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Upgrade npm to latest version
+RUN npm install -g npm@latest
 
 # Set working directory in container
 WORKDIR /app
