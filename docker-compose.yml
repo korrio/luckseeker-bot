@@ -52,12 +52,17 @@ services:
       - luckseeker-network
     environment:
       - OLLAMA_KEEP_ALIVE=24h
+    command: >
+      sh -c "ollama serve &
+             sleep 10 &&
+             ollama pull gemma3 &&
+             wait"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
 
   # Optional: Add Redis for caching user data
   redis:
