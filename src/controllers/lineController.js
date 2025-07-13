@@ -12,8 +12,11 @@ const lineConfig = {
 
 const client = new line.Client(lineConfig);
 
+// Simple mutex to prevent duplicate requests
+const processingUsers = new Set();
+
 // Helper function to show loading animation using direct API call
-async function showLoadingAnimation(userId, loadingSeconds = 20) {
+async function showLoadingAnimation(userId, loadingSeconds = 8) {
   try {
     return await axios({
       method: "post",
@@ -659,7 +662,7 @@ async function handleFortuneCategory(event, category) {
   try {
     // Show loading animation while processing AI request
     try {
-      await showLoadingAnimation(userId, 20);
+      await showLoadingAnimation(userId, 8);
     } catch (loadingError) {
       console.warn('Failed to show loading animation:', loadingError);
       // Continue without loading animation if it fails
@@ -721,7 +724,41 @@ async function handleFortuneCategory(event, category) {
 
 async function processFortuneCalculation(event, category) {
   const userId = event.source.userId;
-  const birthChart = await database.getBirthChart(userId);
+  
+  // Prevent duplicate requests
+  if (processingUsers.has(userId)) {
+    console.log(`User ${userId} is already being processed, ignoring duplicate request`);
+    return;
+  }
+  
+  processingUsers.add(userId);
+  
+  try {
+    let birthChart = await database.getBirthChart(userId);
+    const birthData = await database.getBirthData(userId);
+
+    // If no birth data, ask user to input
+    if (!birthData) {
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'กรุณากรอกข้อมูลเกิดก่อนค่ะ'
+      });
+    }
+
+  // If birth data exists but no birth chart, regenerate it
+  if (!birthChart && birthData) {
+    console.log(`Regenerating birth chart for user ${userId}`);
+    try {
+      birthChart = await birthChartService.calculateBirthChart(birthData);
+      await database.saveBirthChart(userId, birthChart);
+    } catch (error) {
+      console.error('Error regenerating birth chart:', error);
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'เกิดข้อผิดพลาดในการคำนวณดวง กรุณาลองใหม่อีกครั้งค่ะ'
+      });
+    }
+  }
 
   if (!birthChart) {
     return client.replyMessage(event.replyToken, {
@@ -733,7 +770,7 @@ async function processFortuneCalculation(event, category) {
   try {
     // Show loading animation while processing AI request
     try {
-      await showLoadingAnimation(userId, 20);
+      await showLoadingAnimation(userId, 8);
     } catch (loadingError) {
       console.warn('Failed to show loading animation:', loadingError);
       // Continue without loading animation if it fails
@@ -816,6 +853,9 @@ async function processFortuneCalculation(event, category) {
       type: 'text',
       text: 'ขออภัยค่ะ ไม่สามารถดูโชคลาภได้ในขณะนี้ กรุณาลองใหม่อีกครั้งค่ะ'
     });
+  } finally {
+    // Always remove user from processing set
+    processingUsers.delete(userId);
   }
 }
 
@@ -1071,8 +1111,31 @@ async function handlePostback(event) {
   if (action === 'fortune' && category) {
     // Handle fortune request from text commands
     const userId = event.source.userId;
-    const cachedBirthChart = await database.getBirthChart(userId);
+    let cachedBirthChart = await database.getBirthChart(userId);
     const cachedBirthData = await database.getBirthData(userId);
+    
+    // If no birth data, ask user to input
+    if (!cachedBirthData) {
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'กรุณากรอกข้อมูลเกิดก่อนค่ะ'
+      });
+    }
+
+    // If birth data exists but no birth chart, regenerate it
+    if (!cachedBirthChart && cachedBirthData) {
+      console.log(`Regenerating birth chart for user ${userId} from text command`);
+      try {
+        cachedBirthChart = await birthChartService.calculateBirthChart(cachedBirthData);
+        await database.saveBirthChart(userId, cachedBirthChart);
+      } catch (error) {
+        console.error('Error regenerating birth chart:', error);
+        return client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'เกิดข้อผิดพลาดในการคำนวณดวง กรุณาลองใหม่อีกครั้งค่ะ'
+        });
+      }
+    }
     
     if (cachedBirthChart && cachedBirthData) {
       console.log(`Using cached birth data for user ${userId} for category ${category}`);
