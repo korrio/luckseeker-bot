@@ -1,0 +1,53 @@
+name = "luckseeker-bot"
+main = "src/worker-entry.js"
+compatibility_date = "2024-09-23"
+nodejs_compat = true
+compatibility_flags = ["nodejs_compat"]
+
+[env.production]
+name = "luckseeker-bot-prod"
+
+[env.staging]
+name = "luckseeker-bot-staging"
+
+# Environment variables (set these using wrangler secret commands)
+# wrangler secret put LINE_CHANNEL_ACCESS_TOKEN
+# wrangler secret put LINE_CHANNEL_SECRET
+# wrangler secret put LIFF_ID
+# wrangler secret put OPENAI_API_KEY
+# wrangler secret put ANTHROPIC_API_KEY
+# wrangler secret put OLLAMA_BASE_URL
+# wrangler secret put OLLAMA_MODEL
+
+[vars]
+NODE_ENV = "production"
+PORT = "8787"
+WEBHOOK_URL = "https://luckseeker-bot.your-subdomain.workers.dev/webhook"
+
+# Durable Objects (if needed for persistent storage)
+# [[durable_objects.bindings]]
+# name = "USER_DATA"
+# class_name = "UserDataDO"
+
+# KV Storage (alternative to file-based storage)
+# [[kv_namespaces]]
+# binding = "LUCKSEEKER_KV"
+# id = "your-kv-namespace-id"
+# preview_id = "your-preview-kv-namespace-id"
+
+[[kv_namespaces]]
+binding = "LUCKSEEKER_KV"
+id = "1efb17a4cfc04f1b877eb9dfecb2efd7"
+preview_id = "8fc48ae38e894d449aee7e93540627f4"
+
+# R2 Storage (for larger files if needed)
+# [[r2_buckets]]
+# binding = "LUCKSEEKER_BUCKET"
+# bucket_name = "luckseeker-data"
+
+# No build step needed - using direct source files
+
+# Routes (custom domain)
+# routes = [
+#   { pattern = "luckseeker.yourdomain.com/*", zone_name = "yourdomain.com" }
+# ]

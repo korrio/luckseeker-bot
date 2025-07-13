@@ -284,6 +284,31 @@ async function handleEvent(event) {
       return handleQuotaStatus(event);
     }
 
+    // Handle text commands for menu actions
+    if (message === 'วันเกิด') {
+      return handleTextCommand(event, 'input_birth_data');
+    }
+    
+    if (message === 'ซื้อหวย') {
+      return handleTextCommand(event, 'fortune', 'ซื้อหวย');
+    }
+    
+    if (message === 'พบรัก') {
+      return handleTextCommand(event, 'fortune', 'พบรัก');
+    }
+    
+    if (message === 'ดวงธุรกิจ') {
+      return handleTextCommand(event, 'fortune', 'ดวงธุรกิจ');
+    }
+    
+    if (message === 'ย้ายงาน') {
+      return handleTextCommand(event, 'fortune', 'ย้ายงาน');
+    }
+    
+    if (message === 'ลบ' || message === 'ลบข้อมูล') {
+      return handleTextCommand(event, 'delete_all_data');
+    }
+
     return handleGeneralMessage(event);
   } catch (error) {
     console.error('Error handling event:', {
@@ -310,6 +335,16 @@ async function handleEvent(event) {
 
 async function handleGreeting(event) {
   const userId = event.source.userId;
+  
+  // Check if this is a first-time user
+  const isFirstTime = await database.isFirstTimeUser(userId);
+  
+  if (isFirstTime) {
+    // Mark user as visited and send welcome message
+    await database.markUserAsVisited(userId);
+    return sendWelcomeMessage(event);
+  }
+  
   const cachedBirthData = await database.getBirthData(userId);
   
   // Check if user has cached birth data
@@ -1028,6 +1063,77 @@ async function handlePostback(event) {
     });
   }
 
+  // Handle text command simulated postbacks
+  const params = new URLSearchParams(data);
+  const action = params.get('action');
+  const category = params.get('category');
+
+  if (action === 'fortune' && category) {
+    // Handle fortune request from text commands
+    const userId = event.source.userId;
+    const cachedBirthChart = await database.getBirthChart(userId);
+    const cachedBirthData = await database.getBirthData(userId);
+    
+    if (cachedBirthChart && cachedBirthData) {
+      console.log(`Using cached birth data for user ${userId} for category ${category}`);
+      return handleFortuneCategory(event, category);
+    } else {
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'กรุณากรอกข้อมูลเกิดก่อนค่ะ'
+      });
+    }
+  }
+
+  if (action === 'input_birth_data') {
+    // Handle birth data input request
+    const flexMessage = {
+      type: 'flex',
+      altText: 'กรอกข้อมูลเกิด',
+      contents: {
+        type: 'bubble',
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'text',
+              text: '📅 กรอกข้อมูลเกิด',
+              weight: 'bold',
+              size: 'lg',
+              color: '#7B68EE'
+            },
+            {
+              type: 'text',
+              text: 'กรุณากดปุ่มด้านล่างเพื่อกรอกข้อมูลเกิดของคุณ',
+              size: 'sm',
+              wrap: true,
+              margin: 'md'
+            }
+          ]
+        },
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            {
+              type: 'button',
+              action: {
+                type: 'uri',
+                label: '📝 กรอกข้อมูลเกิด',
+                uri: `https://liff.line.me/${config.line.liffId}`
+              },
+              style: 'primary',
+              color: '#7B68EE'
+            }
+          ]
+        }
+      }
+    };
+
+    return client.replyMessage(event.replyToken, flexMessage);
+  }
+
   // Default response for unknown postback
   return client.replyMessage(event.replyToken, {
     type: 'text',
@@ -1431,6 +1537,135 @@ async function handleAdditionalData(event, message) {
   }
 }
 
+// Handle text commands that simulate postback actions
+async function handleTextCommand(event, action, category = null) {
+  // Create a synthetic postback event
+  const postbackEvent = {
+    ...event,
+    type: 'postback',
+    postback: {
+      data: category ? `action=${action}&category=${encodeURIComponent(category)}` : `action=${action}`
+    }
+  };
+  
+  // Call the postback handler
+  return handlePostback(postbackEvent);
+}
+
+// Send welcome message for first-time users
+async function sendWelcomeMessage(event) {
+  const flexMessage = {
+    type: 'flex',
+    altText: 'ยินดีต้อนรับสู่ TuneHora - จูนโหรา จูนดวง จูนชีวิต',
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: 'TuneHora',
+            weight: 'bold',
+            size: 'xl',
+            color: '#7B68EE',
+            align: 'center'
+          },
+          {
+            type: 'text',
+            text: 'จูนโหรา จูนดวง จูนชีวิต',
+            size: 'md',
+            color: '#666666',
+            align: 'center',
+            margin: 'sm'
+          }
+        ],
+        paddingBottom: 'md'
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: '🌟 ยินดีต้อนรับ',
+            weight: 'bold',
+            size: 'lg',
+            margin: 'md'
+          },
+          {
+            type: 'text',
+            text: 'คุณได้สิทธิ์ดูดวง 10 ครั้ง ฟรี!',
+            size: 'md',
+            color: '#FF6B6B',
+            weight: 'bold',
+            margin: 'sm'
+          },
+          {
+            type: 'separator',
+            margin: 'md'
+          },
+          {
+            type: 'text',
+            text: '✅ ระบบหลัก',
+            weight: 'bold',
+            size: 'md',
+            margin: 'md'
+          },
+          {
+            type: 'text',
+            text: '• แชทบอทไลน์ที่ตอบสนองได้ดี\n• LIFF App กรอกข้อมูลเกิดสะดวก\n• ผสานระบบ AI เข้ากับการดูดวง\n• Swiss Ephemeris คำนวณแม่นยำ',
+            size: 'sm',
+            wrap: true,
+            margin: 'sm'
+          },
+          {
+            type: 'text',
+            text: '✅ ฟีเจอร์ครบครัน',
+            weight: 'bold',
+            size: 'md',
+            margin: 'md'
+          },
+          {
+            type: 'text',
+            text: '• 4 หมวดโชคลาภ: ซื้อหวย, พบรัก, ดวงธุรกิจ, ย้ายงาน\n• ผลลัพธ์เป็นภาษาไทย อ่านง่าย\n• คำนวณคะแนนโชคลาภจากดาวจริง\n• แสดงเลขเด็ดเมื่อดวงดี (>80)',
+            size: 'sm',
+            wrap: true,
+            margin: 'sm'
+          }
+        ]
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'button',
+            action: {
+              type: 'uri',
+              label: '🌟 เริ่มต้นดูดวง',
+              uri: `https://miniapp.line.me/${config.line.liffId}`
+            },
+            style: 'primary',
+            color: '#7B68EE',
+            margin: 'sm'
+          },
+          {
+            type: 'text',
+            text: 'หรือพิมพ์ "เริ่มต้น" เพื่อเริ่มใช้งาน',
+            size: 'xs',
+            color: '#999999',
+            align: 'center',
+            margin: 'sm'
+          }
+        ]
+      }
+    }
+  };
+
+  return client.replyMessage(event.replyToken, flexMessage);
+}
+
 // Admin function to add quota for users
 async function handleAdminAddQuota(event, message) {
   const userId = event.source.userId;
@@ -1441,12 +1676,12 @@ async function handleAdminAddQuota(event, message) {
     if (parts.length < 3) {
       return client.replyMessage(event.replyToken, {
         type: 'text',
-        text: 'รูปแบบคำสั่ง: admin:addquota:targetUserId:amount\nตัวอย่าง: admin:addquota:U123456:4'
+        text: 'รูปแบบคำสั่ง: admin:addquota:targetUserId:amount\nตัวอย่าง: admin:addquota:U123456:10'
       });
     }
 
     const targetUserId = parts[2];
-    const amount = parseInt(parts[3]) || 4;
+    const amount = parseInt(parts[3]) || 10;
 
     if (!targetUserId) {
       return client.replyMessage(event.replyToken, {

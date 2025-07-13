@@ -323,10 +323,10 @@ class Database {
   async getUserQuota(userId) {
     const quotaData = await this.readFile(this.quotaFile);
     if (!quotaData[userId]) {
-      // Initialize new user with 4 queries
+      // Initialize new user with 10 queries
       quotaData[userId] = {
-        remainingQueries: 4,
-        totalQueries: 4,
+        remainingQueries: 10,
+        totalQueries: 10,
         usedQueries: 0,
         lastUpdated: new Date().toISOString(),
         resetDate: null
@@ -341,8 +341,8 @@ class Database {
     
     if (!quotaData[userId]) {
       quotaData[userId] = {
-        remainingQueries: 4,
-        totalQueries: 4,
+        remainingQueries: 10,
+        totalQueries: 10,
         usedQueries: 0,
         lastUpdated: new Date().toISOString(),
         resetDate: null
@@ -366,7 +366,7 @@ class Database {
     return quota.remainingQueries > 0;
   }
 
-  async addUserQuota(userId, additionalQueries = 4) {
+  async addUserQuota(userId, additionalQueries = 10) {
     const quotaData = await this.readFile(this.quotaFile);
     
     if (!quotaData[userId]) {
@@ -387,7 +387,7 @@ class Database {
     return quotaData[userId];
   }
 
-  async resetUserQuota(userId, newQuotaAmount = 4) {
+  async resetUserQuota(userId, newQuotaAmount = 10) {
     const quotaData = await this.readFile(this.quotaFile);
     
     quotaData[userId] = {
@@ -404,6 +404,35 @@ class Database {
 
   async getAllUserQuotas() {
     return await this.readFile(this.quotaFile);
+  }
+
+  // Check if user is first-time user (no data in any system)
+  async isFirstTimeUser(userId) {
+    const birthData = await this.getBirthData(userId);
+    const birthChart = await this.getBirthChart(userId);
+    const quotaData = await this.readFile(this.quotaFile);
+    
+    // User is first-time if they have no birth data, no birth chart, and no quota record
+    return !birthData && !birthChart && !quotaData[userId];
+  }
+
+  // Mark user as visited (create initial quota record)
+  async markUserAsVisited(userId) {
+    const quotaData = await this.readFile(this.quotaFile);
+    
+    if (!quotaData[userId]) {
+      quotaData[userId] = {
+        remainingQueries: 10,
+        totalQueries: 10,
+        usedQueries: 0,
+        lastUpdated: new Date().toISOString(),
+        resetDate: null,
+        firstVisit: new Date().toISOString()
+      };
+      await this.writeFile(this.quotaFile, quotaData);
+    }
+    
+    return quotaData[userId];
   }
 }
 
