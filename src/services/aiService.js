@@ -1,5 +1,6 @@
 const OpenAI = require('openai');
 const Anthropic = require('@anthropic-ai/sdk');
+const { Ollama } = require('ollama');
 const config = require('../config');
 
 class AIService {
@@ -10,6 +11,10 @@ class AIService {
     
     this.anthropic = new Anthropic({
       apiKey: config.ai.anthropicApiKey,
+    });
+    
+    this.ollama = new Ollama({
+      host: config.ai.ollamaBaseUrl
     });
   }
 
@@ -32,7 +37,7 @@ ${JSON.stringify(birthChart, null, 2)}
 
 📄 RESPONSE FORMAT
 ────────────────────
-**ช่วงเวลา** : ${new Date().toLocaleDateString('th-TH')} ${new Date().toLocaleTimeString('th-TH')}
+**ช่วงเวลา** : ${new Date().toLocaleDateString('th-TH')} 
 **Lucky-Score** : [คะแนน 0-100] / 100  [✅/❌] [เหนือ/ต่ำกว่า]เกณฑ์  
 **ดาวจรเด่น** : [ดาวจร] [Aspect] [ดาวกำเนิด] ([องศา]°) | [ดาวจร2] [Aspect2] [ดาวกำเนิด2] ([องศา2]°)  
 **เลขเด็ด** :  
@@ -57,6 +62,12 @@ ${JSON.stringify(birthChart, null, 2)}
   async getFortuneFromOpenAI(birthChart, category) {
     try {
       const systemPrompt = this.generateSystemPrompt(birthChart, category);
+
+      const content = `กรุณาวิเคราะห์โชคลาภหมวด "${category}" จากข้อมูล Birth Chart ที่ให้มา และตอบตาม RESPONSE FORMAT ที่กำหนดอย่างเคร่งครัด`;
+
+      console.log("systemPrompt",systemPrompt)
+
+      console.log("content",content)
       
       const completion = await this.openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -67,7 +78,7 @@ ${JSON.stringify(birthChart, null, 2)}
           },
           {
             role: "user", 
-            content: `กรุณาวิเคราะห์โชคลาภหมวด "${category}" จากข้อมูล Birth Chart ที่ให้มา และตอบตาม RESPONSE FORMAT ที่กำหนดอย่างเคร่งครัด`
+            content: content
           }
         ],
         max_tokens: 1500,
@@ -106,9 +117,39 @@ ${JSON.stringify(birthChart, null, 2)}
     }
   }
 
-  async getFortune(birthChart, category, preferredProvider = 'chatgpt') {
+  async getFortuneFromOllama(birthChart, category) {
     try {
-      if (preferredProvider === 'claude' && config.ai.anthropicApiKey) {
+      const systemPrompt = this.generateSystemPrompt(birthChart, category);
+      const userContent = `กรุณาวิเคราะห์โชคลาภหมวด "${category}" จากข้อมูล Birth Chart ที่ให้มา และตอบตาม RESPONSE FORMAT ที่กำหนดอย่างเคร่งครัด`;
+      
+      const response = await this.ollama.chat({
+        model: config.ai.ollamaModel,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: userContent
+          }
+        ],
+        stream: false
+      });
+
+      console.log('Ollama response:', response.message.content);
+      return response.message.content;
+    } catch (error) {
+      console.error('Ollama API error:', error);
+      throw error;
+    }
+  }
+
+  async getFortune(birthChart, category, preferredProvider = 'ollama') {
+    try {
+      if (preferredProvider === 'ollama') {
+        return await this.getFortuneFromOllama(birthChart, category);
+      } else if (preferredProvider === 'claude' && config.ai.anthropicApiKey) {
         return await this.getFortuneFromClaude(birthChart, category);
       } else if (config.ai.openaiApiKey) {
         return await this.getFortuneFromOpenAI(birthChart, category);
