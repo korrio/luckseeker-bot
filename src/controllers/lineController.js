@@ -671,9 +671,16 @@ async function handleFortuneCategory(event, category) {
     // Prepare additional data for fortune calculation
     const additionalData = await database.getAllAdditionalData(userId);
 
-    const fortuneResult = await fortuneService.getFortune(birthChart, category, additionalData, 'chatgpt', userId);
+    let fortuneResult = await fortuneService.getFortune(birthChart, category, additionalData, 'chatgpt', userId);
 
     console.log("fortuneResult",fortuneResult)
+    
+    // Add quota information to the result
+    if (userId) {
+      const userQuota = await database.getUserQuota(userId);
+      const quotaInfo = `\n\n📊 **สถานะการใช้งาน**\n🔢 สิทธิ์คงเหลือ: ${userQuota.remainingQueries} ครั้ง\n📈 ใช้ไปแล้ว: ${userQuota.usedQueries} ครั้ง\n💯 สิทธิ์ทั้งหมด: ${userQuota.totalQueries} ครั้ง`;
+      fortuneResult += quotaInfo;
+    }
     
     // Return plain text instead of flex message
     try {
@@ -807,6 +814,13 @@ async function processFortuneCalculation(event, category) {
     }
 
     console.log("fortuneResult", fortuneResult);
+    
+    // Add quota information to the result
+    if (!isCached && userId) {
+      const userQuota = await database.getUserQuota(userId);
+      const quotaInfo = `\n\n📊 **สถานะการใช้งาน**\n🔢 สิทธิ์คงเหลือ: ${userQuota.remainingQueries} ครั้ง\n📈 ใช้ไปแล้ว: ${userQuota.usedQueries} ครั้ง\n💯 สิทธิ์ทั้งหมด: ${userQuota.totalQueries} ครั้ง`;
+      fortuneResult += quotaInfo;
+    }
     
     // Return plain text instead of flex message
     try {
