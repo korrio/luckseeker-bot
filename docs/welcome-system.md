@@ -100,8 +100,36 @@ Bot: สวัสดีค่ะ Seeker ✨
 กรุณาเลือกเพศและกรอกข้อมูลเกิดของคุณ
 ```
 
+## คุณสมบัติใหม่
+
+### AI Provider Support
+- Welcome message รองรับ ChatGPT, Claude, และ Ollama
+- ระบบจะปรับการแนะนำตามฟีเจอร์ที่มี
+
+### Text Commands Integration
+- Welcome message แนะนำการใช้ text commands
+- รองรับการพิมพ์คำสั่งตรงๆ เช่น "ซื้อหวย", "พบรัก"
+
+### Domain Ready
+- Welcome message ปรับให้เหมาะกับ production domain (hora.aq1.co)
+- LIFF URL ชี้ไป production endpoint
+
 ## การติดตั้งและใช้งาน
 
 ระบบ Welcome Message จะเริ่มทำงานอัตโนมัติหลังจากการอัพเดท ไม่ต้องการการตั้งค่าเพิ่มเติม
 
 การบันทึกข้อมูลผู้ใช้ครั้งแรกจะถูกเก็บในไฟล์ `data/userQuota.json` พร้อมกับข้อมูล quota
+
+## การปรับแต่ง
+
+### ข้อความ Welcome
+- สามารถแก้ไขข้อความใน `sendWelcomeMessage()` function
+- รองรับ Flex Message format สำหรับรูปแบบที่สวยงาม
+
+### Quota เริ่มต้น
+- ปัจจุบันตั้งค่าที่ 10 ครั้ง
+- สามารถแก้ไขใน `database.js` ได้
+
+### Branding
+- ข้อความ TuneHora สามารถปรับแต่งได้
+- รองรับการเปลี่ยนสี theme และ emoji

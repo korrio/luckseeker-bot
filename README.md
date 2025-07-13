@@ -1,233 +1,71 @@
 # LuckSeeker - LINE Chatbot สำหรับดูดวงภาษาไทย
-- LINE chatbot with LIFF app สำหรับดูดวงโหราศาสตร์ในภาษาไทย พร้อมการวิเคราะห์ Birth Chart และทำนายโชคลาภ 4 หมวด
 
-# Webhook
-- https://bf10-2a09-bac5-56bf-1d0f-00-2e5-56.ngrok-free.app
+🌟 **Production URL**: https://hora.aq1.co
 
-## ✨ Features
+LuckSeeker เป็น LINE chatbot ที่ใช้ AI (ChatGPT/Claude/Ollama) ในการดูดวงโหราศาสตร์ไทย พร้อมระบบ LIFF สำหรับกรอกข้อมูลเกิดและการคำนวณ Birth Chart แบบแม่นยำ
 
-- 🌟 **LIFF App**: กรอกข้อมูลเกิด (วันเกิด, เวลา, สถานที่)
-- 📊 **Birth Chart**: สร้าง Birth Chart จาก Swiss Ephemeris Library
-- 🤖 **AI Fortune Telling**: ใช้ ChatGPT/Claude API วิเคราะห์ดวง
-- 🎯 **4 หมวดโชคลาภ**: ซื้อหวย, พบรัก, ดวงธุรกิจ, ย้ายงาน
-- 🇹🇭 **ภาษาไทย**: ตอบกลับทั้งหมดเป็นภาษาไทย
-- 📱 **LINE Integration**: ใช้งานผ่าน LINE Messenger
-- 💬 **Text Commands**: รองรับคำสั่งพิมพ์ (วันเกิด, ซื้อหวย, พบรัก, ดวงธุรกิจ, ย้ายงาน, ลบ)
-- 🎯 **Quota System**: จำกัดการใช้งาน 10 ครั้งต่อผู้ใช้
+## ✨ คุณสมบัติหลัก
 
-## 🏗️ Architecture
+- 🤖 **Multi-AI Support**: ChatGPT, Claude, และ Ollama (Gemma3)
+- 🎯 **4 หมวดดวง**: ซื้อหวย, พบรัก, ดวงธุรกิจ, ย้ายงาน
+- 💬 **Text Commands**: พิมพ์คำสั่งได้โดยตรง
+- 🎯 **Quota System**: 10 ครั้งต่อผู้ใช้ พร้อมแสดงสถานะ
+- 🏠 **Welcome System**: ต้อนรับผู้ใช้ใหม่แบบ TuneHora
+- 🌍 **Production Ready**: Deploy บน hora.aq1.co
+- 🐳 **Docker Support**: รองรับ containerization
 
-```
-User Input (LIFF) → Birth Chart Calculation → AI Analysis → Thai Response
-```
+## 🚀 เริ่มต้นใช้งาน
 
-1. ผู้ใช้กรอกข้อมูลผ่าน LIFF app
-2. ระบบสร้าง Birth Chart จาก Swiss Ephemeris
-3. ส่งข้อมูล Birth Chart + System Prompt ไปยัง AI
-4. AI วิเคราะห์และตอบกลับเป็นภาษาไทย
-
-## 📋 Prerequisites
-
-- Node.js (v16+)
-- LINE Developer Account
-- OpenAI API Key หรือ Anthropic API Key
-- Swiss Ephemeris data files (optional for better accuracy)
-
-## 🚀 Installation
-
-1. **Clone repository**
+### Development
 ```bash
-git clone <repository-url>
-cd LuckSeeker
-```
-
-2. **Install dependencies**
-```bash
+git clone https://github.com/korrio/luckseeker-bot.git
+cd luckseeker-bot
 npm install
-```
-
-3. **Environment setup**
-```bash
 cp .env.example .env
-```
-
-4. **Configure .env file**
-```env
-# LINE Bot Configuration
-LINE_CHANNEL_ACCESS_TOKEN=your_line_channel_access_token
-LINE_CHANNEL_SECRET=your_line_channel_secret
-LIFF_ID=your_liff_id
-
-# AI API Configuration
-OPENAI_API_KEY=your_openai_api_key
-ANTHROPIC_API_KEY=your_anthropic_api_key
-
-# Swiss Ephemeris Configuration
-SWISSEPH_EPHE_PATH=./ephe
-
-# Server Configuration
-PORT=3000
-NODE_ENV=development
-```
-
-5. **Download Swiss Ephemeris data (optional)**
-```bash
-# Download essential ephemeris files to ephe/ directory
-# See ephe/README.md for download links and instructions
-```
-
-6. **Start development server**
-```bash
+# แก้ไข .env ตามการตั้งค่าของคุณ
 npm run dev
 ```
 
-## 🔧 LINE Bot Setup
-
-### 1. Create LINE Bot
-1. ไปที่ [LINE Developers Console](https://developers.line.biz/)
-2. สร้าง Provider และ Channel (Messaging API)
-3. ได้ Channel Access Token และ Channel Secret
-
-### 2. Create LIFF App
-1. ใน Channel settings ไปที่ LIFF tab
-2. สร้าง LIFF app ใหม่:
-   - Endpoint URL: `https://your-domain.com/liff`
-   - Size: Full
-   - Features: ✅ BLE, Scan QR Code
-3. ได้ LIFF ID
-
-### 3. Set Webhook URL
-- Webhook URL: `https://your-domain.com/webhook`
-- ✅ Enable webhook
-- ✅ Auto-reply messages: Disabled
-
-## 📱 Usage Flow
-
-### 1. User Experience
-```
-User: "สวัสดี" 
-Bot: แสดง welcome message + ปุ่ม "กรอกข้อมูลเกิด"
-
-User: กด "กรอกข้อมูลเกิด"
-→ เปิด LIFF app
-
-User: กรอกข้อมูล (เพศ, วันเกิด, เวลา, สถานที่)
-→ ส่งข้อมูลกลับ chat
-
-Bot: แสดงปุ่มเลือก 4 หมวดโชคลาภ
-- 🎰 ซื้อหวย
-- 💕 พบรัก  
-- 💼 ดวงธุรกิจ
-- 🔄 ย้ายงาน
-
-User: เลือกหมวด
-Bot: วิเคราะห์และตอบผลการดูดวง
-```
-
-### 2. Response Format
-```
-────────────────────
-**ช่วงเวลา** : 18 มิ.ย. 2025 20:25-20:30
-**Lucky-Score** : 84 / 100  ✅ เหนือเกณฑ์  
-**ดาวจรเด่น** : Jupiter Trine Sun (29°) | Venus Sextile Moon (14°)  
-**เลขเด็ด** :  
-- 29  (Jupiter 29° Trine Sun)  
-- 2914  (รวมองศา Jupiter 29° + Venus 14°)  
-**คําแนะนํา** : โอกาสดีจากมุม Trine ของดาวโชคลาภ...
-────────────────────
-```
-
-## 🔧 Development
-
-### Project Structure
-```
-src/
-├── config/           # Configuration
-├── controllers/      # LINE webhook controller
-├── services/         # Business logic
-│   ├── birthChartService.js    # Birth chart generation
-│   ├── fortuneService.js       # Fortune telling logic
-│   └── aiService.js           # AI integration
-├── utils/           # Utilities
-└── index.js         # Server entry point
-
-public/
-└── index.html       # LIFF app interface
-```
-
-### Available Scripts
+### Production (Docker)
 ```bash
-npm start       # Production server
-npm run dev     # Development with nodemon
-npm test        # Run tests
+docker-compose up -d
 ```
 
-## 🤖 AI Integration
-
-### System Prompt
-ระบบใช้ System Prompt ที่ออกแบบเฉพาะเพื่อ:
-- กำหนด Role เป็น "น้องลักกี้ หมอดูโหราศาสตร์"
-- ห้ามตอบคลุมเครือ/สุ่มตัวเลข
-- อ้างอิงหลักโหราศาสตร์จริง
-- ตอบตาม Response Format ที่กำหนด
-
-### Lucky Score Calculation
-```javascript
-// คะแนนจาก Transit aspects
-Conjunction: +40
-Trine: +30  
-Sextile: +20
-Square: -30
-Opposition: -40
-
-// รวมคะแนน → รีสเกล 0-100
-// ถ้า ≥ 80 → แสดงเลขเด็ด
-// ถ้า < 80 → ไม่แนะนำเสี่ยง
+### Cloudflare Workers
+```bash
+npm run worker:deploy
 ```
 
-## 🔒 Security Notes
+## 📚 เอกสาร
 
-- ไม่เก็บข้อมูลส่วนตัวของผู้ใช้
-- API Keys ต้องเก็บใน environment variables
-- ใช้ HTTPS สำหรับ production
-- Validate input data ก่อนส่งไปยัง external APIs
+เอกสารทั้งหมดอยู่ในโฟลเดอร์ [`docs/`](./docs/README.md)
 
-## 📊 Monitoring & Logs
+### เอกสารหลัก
+- **[Project Overview](./docs/project-overview.md)** - ข้อมูลโครงการทั้งหมด
+- **[Installation Guide](./docs/installation.md)** - คู่มือติดตั้ง
+- **[Deployment Guide](./docs/deployment.md)** - คู่มือ deployment
 
-- ใช้ console.log สำหรับ development
-- Production ควรใช้ proper logging library
-- Monitor API usage และ rate limits
+### คุณสมบัติ
+- **[Quota System](./docs/quota-system.md)** - ระบบจำกัดการใช้งาน
+- **[Text Commands](./docs/text-commands.md)** - คำสั่งพิมพ์
+- **[Welcome System](./docs/welcome-system.md)** - ระบบต้อนรับ
 
-## 🚀 Deployment
+### Technical
+- **[Nginx Deployment](./docs/nginx-deployment.md)** - Nginx reverse proxy
+- **[Cloudflare Worker](./docs/cloudflare-worker.md)** - Serverless deployment
+- **[Rich Messages](./docs/rich-message.md)** - Flex message implementation
 
-### Recommended Platforms
-- **Heroku**: ง่ายสำหรับ prototype
-- **Railway**: Modern deployment
-- **DigitalOcean**: VPS control
-- **AWS/GCP**: Enterprise scale
+## 🔗 ลิงก์สำคัญ
 
-### Environment Variables
-ตรวจสอบว่า production environment มี:
-- ✅ LINE_CHANNEL_ACCESS_TOKEN
-- ✅ LINE_CHANNEL_SECRET  
-- ✅ LIFF_ID
-- ✅ OPENAI_API_KEY หรือ ANTHROPIC_API_KEY
-- ✅ PORT (Heroku จะ set automatic)
-
-## 🤝 Contributing
-
-1. Fork repository
-2. Create feature branch
-3. Commit changes
-4. Push to branch
-5. Create Pull Request
+- **Production**: https://hora.aq1.co
+- **Repository**: https://github.com/korrio/luckseeker-bot
+- **Documentation**: [./docs/](./docs/README.md)
+- **LINE Developers**: https://developers.line.biz/
 
 ## 📄 License
 
-MIT License - see LICENSE file for details
+MIT License - ดูรายละเอียดใน LICENSE file
 
-## 🙏 Acknowledgments
+---
 
-- [Swiss Ephemeris](https://github.com/marcmarine/swisseph-api) for birth chart calculations
-- [LINE Messaging API](https://developers.line.biz/) for chat platform
-- [OpenAI](https://openai.com/) & [Anthropic](https://anthropic.com/) for AI capabilities
+สำหรับข้อมูลเพิ่มเติม โปรดดูที่ [เอกสารฉบับเต็ม](./docs/README.md)
