@@ -145,7 +145,7 @@ ${JSON.stringify(birthChart, null, 2)}
     }
   }
 
-  async getFortune(birthChart, category, preferredProvider = 'ollama') {
+  async getFortune(birthChart, category, preferredProvider = 'chatgpt') {
     try {
       if (preferredProvider === 'ollama') {
         return await this.getFortuneFromOllama(birthChart, category);
