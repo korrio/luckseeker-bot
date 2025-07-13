@@ -745,29 +745,28 @@ async function processFortuneCalculation(event, category) {
       });
     }
 
-  // If birth data exists but no birth chart, regenerate it
-  if (!birthChart && birthData) {
-    console.log(`Regenerating birth chart for user ${userId}`);
-    try {
-      birthChart = await birthChartService.calculateBirthChart(birthData);
-      await database.saveBirthChart(userId, birthChart);
-    } catch (error) {
-      console.error('Error regenerating birth chart:', error);
+    // If birth data exists but no birth chart, regenerate it
+    if (!birthChart && birthData) {
+      console.log(`Regenerating birth chart for user ${userId}`);
+      try {
+        birthChart = await birthChartService.calculateBirthChart(birthData);
+        await database.saveBirthChart(userId, birthChart);
+      } catch (error) {
+        console.error('Error regenerating birth chart:', error);
+        return client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'เกิดข้อผิดพลาดในการคำนวณดวง กรุณาลองใหม่อีกครั้งค่ะ'
+        });
+      }
+    }
+
+    if (!birthChart) {
       return client.replyMessage(event.replyToken, {
         type: 'text',
-        text: 'เกิดข้อผิดพลาดในการคำนวณดวง กรุณาลองใหม่อีกครั้งค่ะ'
+        text: 'กรุณากรอกข้อมูลเกิดก่อนค่ะ'
       });
     }
-  }
 
-  if (!birthChart) {
-    return client.replyMessage(event.replyToken, {
-      type: 'text',
-      text: 'กรุณากรอกข้อมูลเกิดก่อนค่ะ'
-    });
-  }
-
-  try {
     // Show loading animation while processing AI request
     try {
       await showLoadingAnimation(userId, 8);
