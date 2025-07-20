@@ -662,7 +662,7 @@ async function handleFortuneCategory(event, category) {
   try {
     // Show loading animation while processing AI request
     try {
-      await showLoadingAnimation(userId, 8);
+      await showLoadingAnimation(userId, 5);
     } catch (loadingError) {
       console.warn('Failed to show loading animation:', loadingError);
       // Continue without loading animation if it fails
