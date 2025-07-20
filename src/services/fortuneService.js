@@ -7,6 +7,7 @@ class FortuneService {
     try {
       // Check user quota if userId is provided
       if (userId) {
+        console.log("userId",userId)
         const hasQuota = await database.checkUserQuota(userId);
         if (!hasQuota) {
           return this.getQuotaExceededMessage();
@@ -17,14 +18,25 @@ class FortuneService {
       
       const transits = birthChartService.calculateTransits(birthChart, currentDate);
       
-      const luckyScore = this.calculateLuckyScore(transits);
+      // Get user birth data if userId is provided
+      let userBirthData = null;
+      if (userId) {
+        userBirthData = await database.getBirthData(userId);
+      }
       
       const enhancedBirthChart = {
         ...birthChart,
         transits,
-        luckyScore,
         currentDate: currentDate.toISOString(),
-        additionalData
+        additionalData,
+        // Add user data if available
+        ...(userBirthData && {
+          birthdate: userBirthData.birthdate,
+          birthtime: userBirthData.birthtime,
+          latitude: userBirthData.latitude,
+          longitude: userBirthData.longitude,
+          gender: userBirthData.gender
+        })
       };
 
       const fortuneResult = await aiService.getFortune(enhancedBirthChart, category, preferredProvider);

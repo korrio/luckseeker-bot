@@ -16,7 +16,7 @@ const client = new line.Client(lineConfig);
 const processingUsers = new Set();
 
 // Helper function to show loading animation using direct API call
-async function showLoadingAnimation(userId, loadingSeconds = 8) {
+async function showLoadingAnimation(userId, loadingSeconds = 10) {
   try {
     return await axios({
       method: "post",
