@@ -5,14 +5,15 @@ FROM node:16-alpine3.17
 RUN apk add --no-cache \
     python3 \
     python3-dev \
+    py3-pip \
     py3-setuptools \
     make \
     g++ \
     curl \
     linux-headers
 
-# Install distutils via pip for Python 3.10+
-RUN python3 -m pip install --no-cache-dir setuptools
+# Install additional Python packages needed for swisseph
+RUN python3 -m pip install --no-cache-dir setuptools wheel
 
 # Set working directory in container
 WORKDIR /app
