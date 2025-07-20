@@ -1,5 +1,5 @@
-# Use Alpine with Python 3.10 (more stable)
-FROM node:16-alpine3.17
+# Use Alpine with Python 3.10 and Node.js 18
+FROM node:18-alpine3.18
 
 # Install build dependencies for native modules
 RUN apk add --no-cache \
