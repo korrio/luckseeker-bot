@@ -213,7 +213,7 @@ export default {
             status: 200,
             headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
           });
-
+          // https://luckseeker-bot-dev.onrender.com/webhook
         case '/webhook':
           if (request.method === 'POST') {
             const mockReq = new MockRequest(request, env);
