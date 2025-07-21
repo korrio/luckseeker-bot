@@ -186,13 +186,12 @@ ${JSON.stringify(birthChart, null, 2)}
 
 
   console.log("systemPrompt1",systemPrompt1)
-  console.log("systemPrompt2",systemPrompt2)
 
   switch (category) {
     case "ซื้อหวย":
       return systemPrompt1;
     default:
-      return systemPrompt2;
+      return systemPrompt1;
   }
 
   }
